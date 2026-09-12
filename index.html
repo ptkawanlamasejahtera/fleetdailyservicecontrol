@@ -160,6 +160,10 @@
   .table-panel{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:24px;
     box-shadow:0 4px 18px -10px rgba(30,20,80,.08);}
   .table-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
+  .table-filter-row{
+    display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;margin-bottom:18px;
+    padding-bottom:16px;border-bottom:1px solid var(--border-soft);
+  }
   .table-head h2{font-family:'Sora';font-size:15px;font-weight:700;margin:0;color:var(--text);}
   .table-count{font-size:12.5px;color:var(--text-dim);font-weight:500;
     background:var(--panel-soft);padding:5px 12px;border-radius:20px;}
@@ -601,6 +605,24 @@
       <h2>Detail Armada</h2>
       <div class="table-count" id="tableCount">0 baris</div>
     </div>
+    <div class="table-filter-row">
+      <div class="field">
+        <label>Tanggal Dari</label>
+        <select id="fTanggalFromLocal"></select>
+      </div>
+      <div class="field">
+        <label>Tanggal Sampai</label>
+        <select id="fTanggalToLocal"></select>
+      </div>
+      <div class="field">
+        <label>Business Unit</label>
+        <select id="fBULocal"></select>
+      </div>
+      <div class="field search">
+        <label>Cari (Kode/Nopol)</label>
+        <input type="text" id="fSearchLocal" placeholder="cth: A81, B9070BEN...">
+      </div>
+    </div>
     <div style="overflow-x:auto;">
       <table id="dataTable">
         <thead>
@@ -613,6 +635,8 @@
             <th data-key="Kategori">Kategori<span class="arrow"></span></th>
             <th data-key="Detail">Detail</th>
             <th data-key="ArmadaPengganti">Armada Pengganti</th>
+            <th data-key="TglMasuk">Tgl Masuk<span class="arrow"></span></th>
+            <th data-key="TglSelesai">Tgl Selesai<span class="arrow"></span></th>
             <th data-key="Lama">Lama<span class="arrow"></span></th>
             <th data-key="Status">Status<span class="arrow"></span></th>
           </tr>
@@ -760,6 +784,10 @@ const fLama = document.getElementById('fLama');
 const fSearch = document.getElementById('fSearch');
 const fCutoffFrom = document.getElementById('fCutoffFrom');
 const fCutoffTo = document.getElementById('fCutoffTo');
+const fTanggalFromLocal = document.getElementById('fTanggalFromLocal');
+const fTanggalToLocal = document.getElementById('fTanggalToLocal');
+const fBULocal = document.getElementById('fBULocal');
+const fSearchLocal = document.getElementById('fSearchLocal');
 
 function rebuildFiltersAndRender(){
   tanggalList = uniqSorted(DATA.map(r=>r.Tanggal));
@@ -775,9 +803,18 @@ function rebuildFiltersAndRender(){
   fKategori.innerHTML = '<option value="">Semua Kategori</option>' + katList.map(k=>`<option value="${k}">${k}</option>`).join('');
   fStatus.innerHTML = '<option value="">Semua Status</option>' + statusList.map(s=>`<option value="${s}">${s}</option>`).join('');
 
+  // Filter mini duplikat dekat tabel Detail Armada (Tanggal, BU) - sinkron dengan filter utama
+  fTanggalFromLocal.innerHTML = fTanggalFrom.innerHTML;
+  fTanggalToLocal.innerHTML = fTanggalTo.innerHTML;
+  fBULocal.innerHTML = fBU.innerHTML;
+
   const defaultDate = pickDefaultDate();
   fTanggalFrom.value = defaultDate;
   fTanggalTo.value = defaultDate;
+  fTanggalFromLocal.value = defaultDate;
+  fTanggalToLocal.value = defaultDate;
+  fBULocal.value = fBU.value;
+  fSearchLocal.value = fSearch.value;
 
   // Dropdown periode cutoff untuk Rekap Downtime, berbasis Tanggal Masuk Service
   tglMasukList = uniqSorted(DATA.map(r=>r.TglMasuk).filter(t=>t!==''));
@@ -1149,6 +1186,12 @@ function animateValue(el, to){
 function pct(n,total){ return total ? Math.round(n/total*100) : 0; }
 
 function render(){
+  // Sinkronkan filter mini dekat tabel Detail Armada dengan filter utama di atas
+  fTanggalFromLocal.value = fTanggalFrom.value;
+  fTanggalToLocal.value = fTanggalTo.value;
+  fBULocal.value = fBU.value;
+  fSearchLocal.value = fSearch.value;
+
   const rows = currentFiltered();
   const total = rows.length;
 
@@ -1423,6 +1466,8 @@ function render(){
         <td><span class="cat-chip"><span class="dot" style="background:${catColor(r.Kategori)}"></span>${r.Kategori}</span></td>
         <td class="detail">${r.Detail}</td>
         <td>${renderArmadaPengganti(r.ArmadaPengganti)}</td>
+        <td class="mono" style="white-space:nowrap;color:var(--text-dim);font-size:12px;">${r.TglMasuk || '—'}</td>
+        <td class="mono" style="white-space:nowrap;color:var(--text-dim);font-size:12px;">${r.TglSelesai || '—'}</td>
         <td class="lama">${r.Lama || '—'}</td>
         <td>
           <span class="status-chip ${statusClass(r.Status)}">${r.Status}</span>
@@ -1434,6 +1479,11 @@ function render(){
 }
 
 [fTanggalFrom,fTanggalTo,fBU,fKategori,fStatus,fLama].forEach(el=>el.addEventListener('change', render));
+
+fTanggalFromLocal.addEventListener('change', ()=>{ fTanggalFrom.value = fTanggalFromLocal.value; render(); });
+fTanggalToLocal.addEventListener('change', ()=>{ fTanggalTo.value = fTanggalToLocal.value; render(); });
+fBULocal.addEventListener('change', ()=>{ fBU.value = fBULocal.value; render(); });
+fSearchLocal.addEventListener('input', ()=>{ fSearch.value = fSearchLocal.value; render(); });
 fSearch.addEventListener('input', render);
 document.getElementById('resetBtn').addEventListener('click', ()=>{
   const d = pickDefaultDate();
