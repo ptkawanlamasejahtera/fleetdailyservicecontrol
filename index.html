@@ -364,9 +364,9 @@
 
 <div class="topbar">
   <div style="display:flex;align-items:center;gap:10px;margin-left:auto;">
-    <input type="text" id="gasUrlInput" placeholder="Tempel URL Apps Script (.../exec) di sini" value="https://script.google.com/macros/s/AKfycbw41oPEoWHSecaueq-cBa-kXohm5tJPqaK4fiy8FYf-VjeyVbEZ4JGQM5ycPebD_X7J/exec" style="min-width:280px;">
+    <input type="text" id="gasUrlInput" placeholder="(Opsional) URL Apps Script untuk koneksi manual/testing" value="https://script.google.com/macros/s/AKfycbw41oPEoWHSecaueq-cBa-kXohm5tJPqaK4fiy8FYf-VjeyVbEZ4JGQM5ycPebD_X7J/exec" style="min-width:280px;">
     <button class="reset-btn" id="compactBtn" style="white-space:nowrap;">&#128247; Mode Screenshot</button>
-    <button class="reset-btn" id="connectBtn" style="white-space:nowrap;">Sambungkan</button>
+    <button class="reset-btn" id="connectBtn" style="white-space:nowrap;" title="Ambil data terkini LANGSUNG dari sheet (skip data.json). Pakai ini kalau baru edit sheet dan mau lihat perubahannya instan.">&#9889; Ambil Data Sekarang</button>
   </div>
 </div>
 
@@ -382,7 +382,7 @@
         </div>
       </div>
       <div class="status-row">
-        <button class="reset-btn" id="refreshBtn" style="white-space:nowrap;display:none;">&#8635; Refresh Data</button>
+        <button class="reset-btn" id="refreshBtn" style="white-space:nowrap;display:none;" title="Ambil ulang data.json dari GitHub (update otomatis tiap ~5 menit). Untuk data instan langsung dari sheet, klik 'Sambungkan Manual' di kanan atas.">&#8635; Refresh Data</button>
         <div class="live-badge" id="liveBadge"><span class="live-dot" id="liveDot" style="background:#A0A4BD;"></span> <span id="liveText">Snapshot (belum tersambung)</span></div>
       </div>
     </div>
@@ -805,43 +805,72 @@ function setLiveStatus(kind, text){
   liveDot.style.boxShadow = kind==='ok' ? '0 0 0 4px rgba(15,194,166,.18)' : 'none';
 }
 
+// Terapkan JSON hasil fetch (baik dari Apps Script langsung maupun dari data.json statis)
+function applyLiveJson(json, sourceLabel){
+  if(json && json.error) throw new Error(json.error);
+
+  // format baru: { dailyService: [...], summaryArmada: {...} }
+  // fallback: format lama (array langsung) tetap didukung
+  let dailyRows, summary;
+  if(Array.isArray(json)){
+    dailyRows = json;
+    summary = null;
+  } else if(json && Array.isArray(json.dailyService)){
+    dailyRows = json.dailyService;
+    summary = json.summaryArmada || null;
+  } else {
+    throw new Error('Format data tidak sesuai');
+  }
+  if(dailyRows.length===0) throw new Error('Data kosong / format tidak sesuai');
+
+  DATA = dailyRows;
+  SUMMARY_ARMADA = summary;
+  rebuildFiltersAndRender();
+  renderSummaryArmada();
+  const now = new Date();
+  setLiveStatus('ok', `${sourceLabel} · update ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')} · ${DATA.length} baris`);
+  refreshBtn.style.display = 'inline-flex';
+}
+
+function useSnapshotFallback(){
+  DATA = SNAPSHOT_DATA;
+  SUMMARY_ARMADA = null;
+  rebuildFiltersAndRender();
+  renderSummaryArmada();
+}
+
+// Sumber utama: file data.json statis di GitHub Pages (di-update berkala oleh
+// GitHub Action, tiap ~5 menit). Ini jauh lebih ringan & stabil dibanding
+// manggil Apps Script langsung tiap kali dashboard dibuka/refresh.
+async function loadStaticData(silent){
+  if(!silent) setLiveStatus('loading', 'Memuat data terbaru...');
+  try{
+    const res = await fetch('./data.json?t=' + Date.now(), { cache: 'no-store' });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const json = await res.json();
+    applyLiveJson(json, 'Live via GitHub');
+  }catch(err){
+    console.error(err);
+    setLiveStatus('error', 'data.json belum tersedia (' + err.message + ') — pakai snapshot');
+    useSnapshotFallback();
+  }
+}
+
+// Sumber alternatif/manual: connect langsung ke Apps Script (buat testing,
+// atau kalau GitHub Action belum sempat jalan). Dipakai kalau klik tombol
+// "Sambungkan" secara manual dengan URL di kolom input.
 async function loadLiveData(url){
   if(!url){ return; }
-  setLiveStatus('loading', 'Memuat data dari sheet...');
+  setLiveStatus('loading', 'Memuat data dari Apps Script...');
   try{
     const res = await fetch(url, { cache: 'no-store' });
     if(!res.ok) throw new Error('HTTP '+res.status);
     const json = await res.json();
-    if(json && json.error) throw new Error(json.error);
-
-    // format baru: { dailyService: [...], summaryArmada: {...} }
-    // fallback: format lama (array langsung) tetap didukung
-    let dailyRows, summary;
-    if(Array.isArray(json)){
-      dailyRows = json;
-      summary = null;
-    } else if(json && Array.isArray(json.dailyService)){
-      dailyRows = json.dailyService;
-      summary = json.summaryArmada || null;
-    } else {
-      throw new Error('Format data tidak sesuai');
-    }
-    if(dailyRows.length===0) throw new Error('Data kosong / format tidak sesuai');
-
-    DATA = dailyRows;
-    SUMMARY_ARMADA = summary;
-    rebuildFiltersAndRender();
-    renderSummaryArmada();
-    const now = new Date();
-    setLiveStatus('ok', `Live · update ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')} · ${DATA.length} baris`);
-    refreshBtn.style.display = 'inline-flex';
+    applyLiveJson(json, 'Live (Apps Script langsung)');
   }catch(err){
     console.error(err);
     setLiveStatus('error', 'Gagal konek (' + err.message + ') — pakai snapshot');
-    DATA = SNAPSHOT_DATA;
-    SUMMARY_ARMADA = null;
-    rebuildFiltersAndRender();
-    renderSummaryArmada();
+    useSnapshotFallback();
   }
 }
 
@@ -980,13 +1009,11 @@ compactBtn.addEventListener('click', ()=>{
   }, 60);
 });
 
-// Auto-connect ke Apps Script yang sudah tertanam saat halaman dibuka
-if(gasUrlInput.value.trim()){
-  loadLiveData(gasUrlInput.value.trim());
-}
+// Auto-load saat halaman dibuka: coba baca data.json statis dari GitHub dulu (ringan & stabil)
+loadStaticData();
+
 refreshBtn.addEventListener('click', ()=>{
-  const url = gasUrlInput.value.trim();
-  loadLiveData(url);
+  loadStaticData();
 });
 
 let sortKey = 'No', sortDir = 1;
