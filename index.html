@@ -553,6 +553,8 @@
             <th class="pmr-th delay-th">Nopol</th>
             <th class="pmr-th delay-th">Type</th>
             <th class="pmr-th delay-th">BU</th>
+            <th class="pmr-th delay-th">Tgl Masuk</th>
+            <th class="pmr-th delay-th">Armada Pengganti</th>
             <th class="pmr-th delay-th">Detail</th>
             <th class="pmr-th delay-th">Lama Delay</th>
           </tr>
@@ -1192,6 +1194,8 @@ function render(){
         <td class="mono">${r.Nopol}</td>
         <td>${r.Type}</td>
         <td><span class="bu-chip">${r.BU}</span></td>
+        <td class="mono" style="white-space:nowrap;">${r.TglMasuk || '—'}</td>
+        <td>${renderArmadaPengganti(r.ArmadaPengganti)}</td>
         <td>${r.Detail || '—'}</td>
         <td class="delay-lama">${r.Lama || '—'}</td>
       </tr>`).join('');
