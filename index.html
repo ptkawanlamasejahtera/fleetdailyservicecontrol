@@ -844,15 +844,17 @@ function setLiveStatus(kind, text){
 function applyLiveJson(json, sourceLabel){
   if(json && json.error) throw new Error(json.error);
 
-  // format baru: { dailyService: [...], summaryArmada: {...} }
+  // format baru: { dailyService: [...], summaryArmada: {...}, _syncedAt: "..." }
   // fallback: format lama (array langsung) tetap didukung
-  let dailyRows, summary;
+  let dailyRows, summary, syncedAt;
   if(Array.isArray(json)){
     dailyRows = json;
     summary = null;
+    syncedAt = null;
   } else if(json && Array.isArray(json.dailyService)){
     dailyRows = json.dailyService;
     summary = json.summaryArmada || null;
+    syncedAt = json._syncedAt || null;
   } else {
     throw new Error('Format data tidak sesuai');
   }
@@ -862,8 +864,21 @@ function applyLiveJson(json, sourceLabel){
   SUMMARY_ARMADA = summary;
   rebuildFiltersAndRender();
   renderSummaryArmada();
-  const now = new Date();
-  setLiveStatus('ok', `${sourceLabel} · update ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')} · ${DATA.length} baris`);
+
+  // Tampilkan waktu SINKRONISASI ASLI (dari GitHub Action) kalau ada,
+  // bukan jam browser fetch — biar jelas se-fresh apa datanya sebenarnya.
+  let timeLabel;
+  if(syncedAt){
+    const syncDate = new Date(syncedAt);
+    const diffMin = Math.max(0, Math.round((Date.now() - syncDate.getTime()) / 60000));
+    const hh = String(syncDate.getHours()).padStart(2,'0');
+    const mm = String(syncDate.getMinutes()).padStart(2,'0');
+    timeLabel = `data per ${hh}:${mm} (${diffMin===0? 'baru saja' : diffMin+' menit lalu'})`;
+  } else {
+    const now = new Date();
+    timeLabel = `update ${now.getHours()}:${String(now.getMinutes()).padStart(2,'0')}`;
+  }
+  setLiveStatus('ok', `${sourceLabel} · ${timeLabel} · ${DATA.length} baris`);
   refreshBtn.style.display = 'inline-flex';
 }
 
