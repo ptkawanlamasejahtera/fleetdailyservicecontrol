@@ -368,9 +368,7 @@
 
 <div class="topbar">
   <div style="display:flex;align-items:center;gap:10px;margin-left:auto;">
-    <input type="text" id="gasUrlInput" placeholder="(Opsional) URL Apps Script untuk koneksi manual/testing" value="https://script.google.com/macros/s/AKfycbw41oPEoWHSecaueq-cBa-kXohm5tJPqaK4fiy8FYf-VjeyVbEZ4JGQM5ycPebD_X7J/exec" style="min-width:280px;">
     <button class="reset-btn" id="compactBtn" style="white-space:nowrap;">&#128247; Mode Screenshot</button>
-    <button class="reset-btn" id="connectBtn" style="white-space:nowrap;" title="Ambil data terkini LANGSUNG dari sheet (skip data.json). Pakai ini kalau baru edit sheet dan mau lihat perubahannya instan.">&#9889; Ambil Data Sekarang</button>
   </div>
 </div>
 
@@ -830,9 +828,7 @@ function rebuildFiltersAndRender(){
   renderDowntimeRecap();
 }
 
-// ---- live connection to Google Apps Script Web App ----
-const gasUrlInput = document.getElementById('gasUrlInput');
-const connectBtn = document.getElementById('connectBtn');
+// ---- live connection ke data.json (GitHub Action) ----
 const refreshBtn = document.getElementById('refreshBtn');
 const liveDot = document.getElementById('liveDot');
 const liveText = document.getElementById('liveText');
@@ -891,24 +887,6 @@ async function loadStaticData(silent){
   }catch(err){
     console.error(err);
     setLiveStatus('error', 'data.json belum tersedia (' + err.message + ') — pakai snapshot');
-    useSnapshotFallback();
-  }
-}
-
-// Sumber alternatif/manual: connect langsung ke Apps Script (buat testing,
-// atau kalau GitHub Action belum sempat jalan). Dipakai kalau klik tombol
-// "Sambungkan" secara manual dengan URL di kolom input.
-async function loadLiveData(url){
-  if(!url){ return; }
-  setLiveStatus('loading', 'Memuat data dari Apps Script...');
-  try{
-    const res = await fetch(url, { cache: 'no-store' });
-    if(!res.ok) throw new Error('HTTP '+res.status);
-    const json = await res.json();
-    applyLiveJson(json, 'Live (Apps Script langsung)');
-  }catch(err){
-    console.error(err);
-    setLiveStatus('error', 'Gagal konek (' + err.message + ') — pakai snapshot');
     useSnapshotFallback();
   }
 }
@@ -1030,12 +1008,6 @@ function renderSummaryArmada(){
   animateValue(document.getElementById('kpiAssets'), overallTotal);
   document.getElementById('kpiAssetsSub').textContent = `Semua Tipe Armada`;
 }
-
-connectBtn.addEventListener('click', ()=>{
-  const url = gasUrlInput.value.trim();
-  if(!url){ setLiveStatus('error', 'URL kosong'); return; }
-  loadLiveData(url);
-});
 
 const compactBtn = document.getElementById('compactBtn');
 compactBtn.addEventListener('click', ()=>{
