@@ -384,7 +384,8 @@
         </div>
       </div>
       <div class="status-row">
-        <button class="reset-btn" id="refreshBtn" style="white-space:nowrap;display:none;" title="Ambil ulang data.json dari GitHub (update otomatis tiap ~5 menit). Untuk data instan langsung dari sheet, klik 'Sambungkan Manual' di kanan atas.">&#8635; Refresh Data</button>
+        <button class="reset-btn" id="refreshBtn" style="white-space:nowrap;display:none;" title="Ambil ulang data.json dari GitHub (biasanya sudah ke-update maks. 1 menit setelah sheet diedit).">&#8635; Refresh Data</button>
+        <button class="reset-btn" id="refreshSheetBtn" style="white-space:nowrap;" title="Baca langsung dari sheet sekarang juga (skip data.json/GitHub) — kalau butuh data yang bener-bener instan.">&#9889; Ambil Langsung dari Sheet</button>
         <div class="live-badge" id="liveBadge"><span class="live-dot" id="liveDot" style="background:#A0A4BD;"></span> <span id="liveText">Snapshot (belum tersambung)</span></div>
       </div>
     </div>
@@ -906,6 +907,23 @@ async function loadStaticData(silent){
   }
 }
 
+// URL Apps Script — dipakai HANYA untuk tombol "Ambil Langsung dari Sheet"
+// (jalur darurat/instan). Jalur utama tetap data.json dari GitHub.
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbw41oPEoWHSecaueq-cBa-kXohm5tJPqaK4fiy8FYf-VjeyVbEZ4JGQM5ycPebD_X7J/exec';
+
+async function loadFromSheetDirect(){
+  setLiveStatus('loading', 'Membaca langsung dari sheet...');
+  try{
+    const res = await fetch(APPS_SCRIPT_URL, { cache: 'no-store' });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const json = await res.json();
+    applyLiveJson(json, 'Live langsung dari Sheet');
+  }catch(err){
+    console.error(err);
+    setLiveStatus('error', 'Gagal baca sheet langsung (' + err.message + ') — coba Refresh Data biasa');
+  }
+}
+
 const ROW_PALETTE = ['#7C5CFC','#0FC2A6','#FF6B6B','#3D8BFF','#FFB020','#F5479C','#8BD450','#B366F0','#FF8A5C','#2FB8D4'];
 function rowColor(name){
   let h = 0;
@@ -1040,6 +1058,11 @@ loadStaticData();
 
 refreshBtn.addEventListener('click', ()=>{
   loadStaticData();
+});
+
+const refreshSheetBtn = document.getElementById('refreshSheetBtn');
+refreshSheetBtn.addEventListener('click', ()=>{
+  loadFromSheetDirect();
 });
 
 let sortKey = 'No', sortDir = 1;
