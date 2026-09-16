@@ -256,29 +256,32 @@
   }
   .summary-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--violet);box-shadow:0 0 0 3px rgba(124,92,252,.18);}
 
-  #summaryTable{border-spacing:0;font-size:14px;}
+  #summaryTable{border-spacing:0;font-size:13.5px;table-layout:fixed;width:100%;}
+  #summaryTable th:first-child,#summaryTable td.type-name{width:130px;}
+  #summaryTable th.num,#summaryTable td.num{width:64px;}
+  #summaryTable th:last-child,#summaryTable td.grand{width:80px;}
   #summaryTable thead th{
-    text-align:left;padding:12px 14px;color:var(--text-faint);font-weight:700;
-    text-transform:uppercase;letter-spacing:.06em;font-size:10.5px;
-    white-space:nowrap;background:linear-gradient(180deg,#FAFAFF,var(--panel-soft));
-    border-bottom:2px solid #E7E2FF;border-right:1px solid #EDEAFB;
+    text-align:left;padding:9px 6px;color:var(--text-faint);font-weight:700;
+    text-transform:uppercase;letter-spacing:.03em;font-size:9px;line-height:1.25;
+    white-space:normal;word-break:break-word;background:linear-gradient(180deg,#FAFAFF,var(--panel-soft));
+    border-bottom:2px solid #E7E2FF;border-right:1px solid #EDEAFB;vertical-align:bottom;
   }
-  #summaryTable thead th:first-child{border-radius:12px 0 0 0;position:sticky;left:0;z-index:2;background:linear-gradient(180deg,#FAFAFF,var(--panel-soft));}
+  #summaryTable thead th:first-child{border-radius:12px 0 0 0;position:sticky;left:0;z-index:2;background:linear-gradient(180deg,#FAFAFF,var(--panel-soft));white-space:nowrap;}
   #summaryTable thead th:last-child{border-radius:0 12px 0 0;color:var(--violet-deep);border-right:none;}
   #summaryTable thead th.num{text-align:center;}
-  #summaryTable tbody td{padding:12px 14px;border-bottom:1px solid var(--border-soft);border-right:1px solid #F1EFFB;white-space:nowrap;transition:background .12s;}
-  #summaryTable tbody td.num{text-align:center;font-family:'JetBrains Mono';color:var(--text);font-weight:700;font-size:15px;font-variant-numeric:tabular-nums;border-radius:8px;}
+  #summaryTable tbody td{padding:10px 8px;border-bottom:1px solid var(--border-soft);border-right:1px solid #F1EFFB;white-space:nowrap;transition:background .12s;overflow:hidden;text-overflow:ellipsis;}
+  #summaryTable tbody td.num{text-align:center;font-family:'JetBrains Mono';color:var(--text);font-weight:700;font-size:14px;font-variant-numeric:tabular-nums;border-radius:8px;}
   #summaryTable tbody td.num.zero{color:var(--text-faint);opacity:.4;font-weight:400;}
   #summaryTable tbody td.type-name{
     font-weight:700;color:var(--text);position:sticky;left:0;background:var(--panel);z-index:1;
-    box-shadow:2px 0 8px -6px rgba(20,20,60,.25);min-width:170px;border-right:1px solid #E7E2FF;
+    box-shadow:2px 0 8px -6px rgba(20,20,60,.25);border-right:1px solid #E7E2FF;
   }
   #summaryTable tbody tr:nth-child(even):not(.total-row) td.type-name{background:#FCFCFF;}
   #summaryTable tbody tr:nth-child(even):not(.total-row) td:not(.type-name){background:rgba(124,92,252,.025);}
   #summaryTable tbody tr:not(.total-row):hover td{background:#F1EDFF !important;}
   #summaryTable tbody tr:not(.total-row):hover td.type-name{background:#F1EDFF !important;}
   #summaryTable tbody td.grand{
-    font-weight:800;font-size:15.5px;color:var(--violet-deep);background:#F5F2FF;border-radius:10px;
+    font-weight:800;font-size:14.5px;color:var(--violet-deep);background:#F5F2FF;border-radius:10px;
   }
   .type-dot{width:8px;height:8px;border-radius:3px;display:inline-block;margin-right:8px;flex-shrink:0;}
   .type-name-inner{display:flex;align-items:center;}
