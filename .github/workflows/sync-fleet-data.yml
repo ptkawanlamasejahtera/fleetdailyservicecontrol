@@ -1,9 +1,12 @@
-name: Sync Fleet Data
+name: Sync Fleet Data (Fallback)
 
-# Jalan otomatis tiap 5 menit, dan bisa dipicu manual dari tab Actions di GitHub
+# Sekarang cuma JARING PENGAMAN — jalur utama update instan sudah dilakukan
+# langsung dari Google Sheet (push ke GitHub tiap ada edit, lihat
+# checkAndPushToGithub_ di Apps Script). Workflow ini jalan tiap 30 menit
+# buat jaga-jaga kalau jalur push dari sheet gagal/berhenti karena suatu hal.
 on:
   schedule:
-    - cron: '*/5 * * * *'
+    - cron: '*/30 * * * *'
   workflow_dispatch:
 
 permissions:
