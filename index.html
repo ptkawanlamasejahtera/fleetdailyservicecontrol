@@ -1124,6 +1124,20 @@ function setLiveStatus(kind, text){
   liveDot.style.boxShadow = kind==='ok' ? '0 0 0 4px rgba(15,194,166,.18)' : 'none';
 }
 
+// Rapikan whitespace di tiap field string satu baris data (trim + rapatkan
+// spasi ganda jadi satu). Sheet sumbernya kadang punya spasi nyasar di akhir
+// nilai (mis. "Re-branding " vs "Re-branding") yang bikin kategori/status/BU
+// yang "sama" kebaca sebagai dua grup berbeda di chart & filter dropdown.
+function cleanRowStrings_(r){
+  const out = {};
+  for(const k in r){
+    const v = r[k];
+    out[k] = (typeof v === 'string') ? v.replace(/\s+/g,' ').trim() : v;
+  }
+  return out;
+}
+function cleanRows_(rows){ return (rows||[]).map(cleanRowStrings_); }
+
 // Terapkan JSON hasil fetch (baik dari Apps Script langsung maupun dari data.json statis)
 function applyLiveJson(json, sourceLabel){
   if(json && json.error) throw new Error(json.error);
@@ -1148,9 +1162,9 @@ function applyLiveJson(json, sourceLabel){
   }
   if(dailyRows.length===0) throw new Error('Data kosong / format tidak sesuai');
 
-  DATA = dailyRows;
+  DATA = cleanRows_(dailyRows);
   SUMMARY_ARMADA = summary;
-  KELUHAN_DATA = keluhanRows;
+  KELUHAN_DATA = cleanRows_(keluhanRows);
   rebuildFiltersAndRender();
   renderSummaryArmada();
 
@@ -1754,12 +1768,13 @@ function render(){
     },
     options:{
       responsive:true, maintainAspectRatio:false,
+      layout:{ padding:{ top:20 } },
       plugins:{ legend:{display:false},
         tooltip:{ backgroundColor:'#fff', borderColor:'#EAECF6', borderWidth:1, padding:10, titleColor:'#191B2E', bodyColor:'#191B2E' },
         datalabels:{ display:true, anchor:'end', align:'end', offset:4, color:'#43465C', font:{weight:700, size:11.5}, formatter:(v)=>v||'' } },
       scales:{
         x:{ ticks:{color:'#43465C', font:{size:11.5, weight:500}}, grid:{display:false} },
-        y:{ beginAtZero:true, ticks:{color:'#A0A4BD', font:{size:11}, precision:0}, grid:{color:'#EFF0F9'} }
+        y:{ beginAtZero:true, suggestedMax: Math.max(...buList.map(b=>buCounts[b]||0),1)*1.18, ticks:{color:'#A0A4BD', font:{size:11}, precision:0}, grid:{color:'#EFF0F9'} }
       }
     }
   });
@@ -1819,12 +1834,13 @@ function render(){
     },
     options:{
       responsive:true, maintainAspectRatio:false,
+      layout:{ padding:{ top:20 } },
       plugins:{ legend:{display:false},
         tooltip:{ backgroundColor:'#fff', borderColor:'#EAECF6', borderWidth:1, padding:10, titleColor:'#191B2E', bodyColor:'#191B2E' },
         datalabels:{ display:true, anchor:'end', align:'end', offset:4, color:'#43465C', font:{weight:700, size:11.5}, formatter:(v)=>v||'' } },
       scales:{
         x:{ ticks:{color:'#43465C', font:{size:11.5, weight:600}}, grid:{display:false} },
-        y:{ beginAtZero:true, ticks:{color:'#A0A4BD', font:{size:11}, precision:0}, grid:{color:'#EFF0F9'} }
+        y:{ beginAtZero:true, suggestedMax: Math.max(...agingCounts,1)+Math.ceil(Math.max(...agingCounts,1)*0.15)+1, ticks:{color:'#A0A4BD', font:{size:11}, precision:0}, grid:{color:'#EFF0F9'} }
       }
     }
   });
