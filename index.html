@@ -444,8 +444,8 @@
   body.compact .kpi-cell .sub{font-size:9px;}
 
   body.compact .panels{gap:8px;margin-bottom:8px;}
-  body.compact .chart-box{height:130px;}
-  body.compact .chart-box.small{height:105px;}
+  body.compact .chart-box{height:160px;}
+  body.compact .chart-box.small{height:130px;}
   body.compact .cat-rows{gap:2px;margin-top:6px;}
   body.compact .cat-row{font-size:10px;}
 
@@ -1358,7 +1358,7 @@ compactBtn.addEventListener('click', ()=>{
   compactBtn.innerHTML = isCompact ? '&#8617; Tampilan Normal' : '&#128247; Mode Screenshot';
   // resize chart.js supaya menyesuaikan ukuran panel yang baru
   setTimeout(()=>{
-    [catChart, statusChart, buChart].forEach(c=>{ if(c) c.resize(); });
+    [catChart, statusChart, buChart, typeChart, agingChart].forEach(c=>{ if(c) c.resize(); });
   }, 60);
 });
 
