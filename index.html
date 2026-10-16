@@ -440,8 +440,12 @@
   body.compact .type-bar{margin-top:2px;height:2px;}
   body.compact .type-dot{width:6px;height:6px;margin-right:5px;}
 
-  body.compact .kpis-panel{margin-bottom:8px;border-radius:10px;}
-  body.compact .kpi-cell{padding:8px 6px;}
+  body.compact .kpis-panel{margin-bottom:8px;border-radius:0;background:transparent;border:none;box-shadow:none;overflow:visible;}
+  body.compact .kpis-grid{gap:8px;}
+  body.compact .kpi-cell{
+    padding:10px 6px;border-right:none;background:var(--panel);border:1px solid var(--border);
+    border-radius:12px;box-shadow:0 4px 18px -10px rgba(30,20,80,.08);
+  }
   body.compact .kpi-cell .icon{width:18px;height:18px;margin-bottom:3px;}
   body.compact .kpi-cell .label{font-size:8px;margin-bottom:3px;}
   body.compact .kpi-cell .value{font-size:16px;margin-bottom:2px;}
