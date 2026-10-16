@@ -238,6 +238,9 @@
   .chart-box{position:relative;height:280px;}
   .chart-box.small{height:220px;}
 
+  .status-chart-row{display:flex;align-items:center;gap:28px;justify-content:center;}
+  .status-chart-row .donut-box{flex:0 0 auto;width:170px;}
+  .status-chart-row .cat-rows{flex:0 0 auto;margin-top:0;}
   .cat-rows{display:flex;flex-direction:column;gap:9px;margin-top:14px;}
   .cat-row{display:flex;align-items:center;gap:10px;font-size:12.5px;}
   .cat-row .dot{width:10px;height:10px;border-radius:4px;flex-shrink:0;}
@@ -448,6 +451,8 @@
   body.compact .chart-box{height:160px;}
   body.compact .chart-box.small{height:130px;}
   body.compact .cat-rows{gap:2px;margin-top:6px;}
+  body.compact .status-chart-row{gap:14px;}
+  body.compact .status-chart-row .donut-box{width:110px;}
   body.compact .cat-row{font-size:10px;}
 
   body.compact .table-panel{display:none;}
@@ -629,8 +634,10 @@
     <div class="panel">
       <h2>Komposisi Status</h2>
       <p class="panel-sub">Delay vs Antri vs Proses vs Selesai vs Reschedule</p>
-      <div class="chart-box small"><canvas id="statusChart"></canvas></div>
-      <div class="cat-rows" id="statusRows"></div>
+      <div class="status-chart-row">
+        <div class="chart-box small donut-box"><canvas id="statusChart"></canvas></div>
+        <div class="cat-rows" id="statusRows"></div>
+      </div>
     </div>
   </div>
 
