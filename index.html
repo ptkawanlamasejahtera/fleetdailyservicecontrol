@@ -767,7 +767,7 @@
     </div>
 
     <h2 style="margin-top:18px;">&#128231; Keluhan Service (Keluhan Driver)</h2>
-    <p class="panel-sub">Log keluhan/permintaan perbaikan armada yang masuk lewat form driver &mdash; seluruh histori, dengan filter sendiri (terpisah dari filter tanggal utama di atas).</p>
+    <p class="panel-sub">Log keluhan/permintaan perbaikan armada yang masuk lewat form driver &mdash; seluruh histori, urutan sama seperti di sheet (terbaru di bagian bawah, halaman terakhir). Klik judul kolom untuk mengurutkan; <b>Reset filter</b> mengembalikan ke urutan sheet.</p>
 
     <div class="table-filter-row" style="margin-top:14px;margin-bottom:14px;">
       <div class="field">
@@ -798,7 +798,7 @@
       <table id="keluhanTable">
         <thead>
           <tr>
-            <th data-key="TanggalPengajuan">Tanggal Pengajuan<span class="arrow"> &#9660;</span></th>
+            <th data-key="TanggalPengajuan">Tanggal Pengajuan<span class="arrow"></span></th>
             <th data-key="KodeArmada">Kode Armada<span class="arrow"></span></th>
             <th data-key="Nopol">Nopol<span class="arrow"></span></th>
             <th data-key="BU">BU<span class="arrow"></span></th>
@@ -1609,7 +1609,8 @@ refreshSheetBtn.addEventListener('click', ()=>{
 
 let sortKey = 'No', sortDir = 1;
 // Sort tabel Keluhan Service — default: TanggalPengajuan terbaru dulu (desc).
-let sortKeyKeluhan = 'TanggalPengajuan', sortDirKeluhan = -1;
+// Default '_i' = urutan baris persis seperti di sheet (paling lama di atas, paling baru di bawah).
+let sortKeyKeluhan = '_i', sortDirKeluhan = 1;
 let catChart, statusChart, buChart, typeChart, agingChart;
 if(window.ChartDataLabels){
   Chart.register(ChartDataLabels);
@@ -1735,7 +1736,8 @@ let keluhanPageSize = 50;
 try{ const ps = parseInt(localStorage.getItem('keluhanPageSize'),10); if(ps>=10 && ps<=1000) keluhanPageSize = ps; }catch(e){}
 
 function renderKeluhanService(keepPage){
-  if(keepPage !== true) keluhanPage = 1;
+  // urutan sheet -> buka di halaman terakhir (keluhan terbaru), seperti scroll ke bawah di sheet
+  if(keepPage !== true) keluhanPage = (sortKeyKeluhan === '_i' && sortDirKeluhan === 1) ? Infinity : 1;
   const tbody = document.getElementById('keluhanTableBody');
   if(!tbody) return;
 
@@ -1750,7 +1752,9 @@ function renderKeluhanService(keepPage){
 
   const sorted = [...rows].sort((a,b)=>{
     let av = a[sortKeyKeluhan] || '', bv = b[sortKeyKeluhan] || '';
-    if(sortKeyKeluhan === 'TanggalPengajuan'){
+    if(sortKeyKeluhan === '_i'){
+      av = a._i; bv = b._i;
+    } else if(sortKeyKeluhan === 'TanggalPengajuan'){
       av = a._t || 0; bv = b._t || 0;
     }
     if(av<bv) return -1*sortDirKeluhan;
@@ -2198,6 +2202,8 @@ if(keluhanResetBtn){
     fKeluhanBU.value = '';
     fKeluhanStatus.value = '';
     fKeluhanSearch.value = '';
+    sortKeyKeluhan = '_i'; sortDirKeluhan = 1;   // kembali ke urutan sheet
+    document.querySelectorAll('#keluhanTable thead th .arrow').forEach(a=>a.textContent='');
     renderKeluhanService();
   });
 }
