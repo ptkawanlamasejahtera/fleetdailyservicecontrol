@@ -453,6 +453,8 @@
   .kmodal-msg.ok{color:#0A9A83;}
   .kmodal-btn{font:inherit;font-size:13px;font-weight:700;padding:9px 18px;border-radius:10px;cursor:pointer;border:1px solid var(--border);background:var(--panel);color:var(--text-dim);}
   .kmodal-btn.primary{background:var(--violet);border-color:var(--violet);color:#fff;}
+  #autoToast{position:fixed;right:20px;bottom:20px;background:#1B1740;color:#fff;padding:11px 18px;border-radius:12px;font-size:13px;font-weight:600;box-shadow:0 10px 30px -8px rgba(0,0,0,.4);opacity:0;transform:translateY(10px);transition:.25s;pointer-events:none;z-index:10000;}
+  #autoToast.show{opacity:1;transform:none;}
   .kmodal-btn.wa{background:#25D366;border-color:#25D366;color:#fff;text-decoration:none;display:inline-block;}
   .kmodal-btn[disabled]{opacity:.6;cursor:wait;}
   @media (max-width:560px){ .kmodal-body{grid-template-columns:1fr;} }
@@ -767,7 +769,7 @@
     </div>
 
     <h2 style="margin-top:18px;">&#128231; Keluhan Service (Keluhan Driver)</h2>
-    <p class="panel-sub">Log keluhan/permintaan perbaikan armada yang masuk lewat form driver &mdash; seluruh histori, urutan sama seperti di sheet (terbaru di bagian bawah, halaman terakhir). Klik judul kolom untuk mengurutkan; <b>Reset filter</b> mengembalikan ke urutan sheet.</p>
+    <p class="panel-sub">Log keluhan/permintaan perbaikan armada yang masuk lewat form driver &mdash; seluruh histori, keluhan terbaru di paling atas. Klik judul kolom untuk mengurutkan; <b>Reset filter</b> mengembalikan ke urutan awal.</p>
 
     <div class="table-filter-row" style="margin-top:14px;margin-bottom:14px;">
       <div class="field">
@@ -1306,6 +1308,75 @@ async function loadFromSheetDirect(){
 }
 
 
+// ====================== AUTO UPDATE ======================
+// data.json di GitHub cuma tampilan awal yang bisa tertinggal berjam-jam. Setelah itu dashboard
+// mengecek Apps Script sendiri secara berkala; kalau ada data baru, tampilan diperbarui TANPA
+// mereset filter, halaman, atau urutan yang sedang dipakai.
+const AUTO_REFRESH_MS = 60 * 1000;
+let autoBusy_ = false, autoLastSig_ = null;
+
+function autoSnapshotUi_(){
+  const snap = {};
+  document.querySelectorAll('select[id], input[id]').forEach(el=>{
+    if(el.id.indexOf('kf') === 0 || el.id === 'kpgSize') return;           // isian jendela edit & ukuran halaman
+    if(el.type === 'checkbox' || el.type === 'radio' || el.type === 'button') return;
+    snap[el.id] = el.value;
+  });
+  return snap;
+}
+function autoRestoreUi_(snap){
+  Object.keys(snap).forEach(id=>{
+    const el = document.getElementById(id); if(!el) return;
+    if(el.tagName === 'SELECT'){
+      if(Array.prototype.some.call(el.options, o=>o.value === snap[id])) el.value = snap[id];
+    } else el.value = snap[id];
+  });
+}
+function showToast_(text){
+  let t = document.getElementById('autoToast');
+  if(!t){ t = document.createElement('div'); t.id = 'autoToast'; document.body.appendChild(t); }
+  t.textContent = text; t.classList.add('show');
+  clearTimeout(showToast_.tm); showToast_.tm = setTimeout(()=>t.classList.remove('show'), 5000);
+}
+
+async function autoRefreshTick(){
+  if(autoBusy_ || document.hidden || kelEditing) return;   // tab tidak terlihat / sedang mengisi form edit
+  autoBusy_ = true;
+  try{
+    const res = await fetch(APPS_SCRIPT_URL, { cache: 'no-store' });
+    if(!res.ok) throw new Error('HTTP '+res.status);
+    const json = await res.json();
+    if(!json || json.error || !Array.isArray(json.dailyService) || json.dailyService.length === 0) return;
+    const sig = JSON.stringify([json.dailyService, json.keluhanService || []]);
+    const now = new Date(), hm = now.getHours()+':'+String(now.getMinutes()).padStart(2,'0');
+    if(sig === autoLastSig_){
+      setLiveStatus('ok', 'Auto-update · dicek '+hm+' · '+DATA.length+' baris');
+      return;
+    }
+    const firstRun = autoLastSig_ === null;
+    const oldK = KELUHAN_DATA.length;
+    autoLastSig_ = sig;
+    const snap = autoSnapshotUi_();
+    applyLiveJson(json, 'Auto-update');
+    autoRestoreUi_(snap);
+    render(); renderDowntimeRecap(); renderKeluhanService(true);
+    setLiveStatus('ok', 'Auto-update · dicek '+hm+' · '+DATA.length+' baris');
+    const add = KELUHAN_DATA.length - oldK;
+    if(!firstRun || add !== 0){
+      if(add > 0) showToast_('🔔 '+add+' keluhan baru masuk');
+      else if(!firstRun) showToast_('Data diperbarui dari sheet');
+    }
+  }catch(err){
+    console.warn('auto-refresh gagal', err);       // diam saja; coba lagi di putaran berikutnya
+  }finally{
+    autoBusy_ = false;
+  }
+}
+setTimeout(autoRefreshTick, 2500);                  // segera ambil data terbaru setelah tampilan awal
+setInterval(autoRefreshTick, AUTO_REFRESH_MS);
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) autoRefreshTick(); });
+
+
 // ====================== EDIT KELUHAN SERVICE ======================
 function escK_(v){
   return String(v == null ? '' : v).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1609,8 +1680,8 @@ refreshSheetBtn.addEventListener('click', ()=>{
 
 let sortKey = 'No', sortDir = 1;
 // Sort tabel Keluhan Service — default: TanggalPengajuan terbaru dulu (desc).
-// Default '_i' = urutan baris persis seperti di sheet (paling lama di atas, paling baru di bawah).
-let sortKeyKeluhan = '_i', sortDirKeluhan = 1;
+// Default '_i' desc = baris terakhir di sheet (keluhan paling baru) tampil paling atas.
+let sortKeyKeluhan = '_i', sortDirKeluhan = -1;
 let catChart, statusChart, buChart, typeChart, agingChart;
 if(window.ChartDataLabels){
   Chart.register(ChartDataLabels);
@@ -1736,8 +1807,7 @@ let keluhanPageSize = 50;
 try{ const ps = parseInt(localStorage.getItem('keluhanPageSize'),10); if(ps>=10 && ps<=1000) keluhanPageSize = ps; }catch(e){}
 
 function renderKeluhanService(keepPage){
-  // urutan sheet -> buka di halaman terakhir (keluhan terbaru), seperti scroll ke bawah di sheet
-  if(keepPage !== true) keluhanPage = (sortKeyKeluhan === '_i' && sortDirKeluhan === 1) ? Infinity : 1;
+  if(keepPage !== true) keluhanPage = 1;
   const tbody = document.getElementById('keluhanTableBody');
   if(!tbody) return;
 
@@ -2202,7 +2272,7 @@ if(keluhanResetBtn){
     fKeluhanBU.value = '';
     fKeluhanStatus.value = '';
     fKeluhanSearch.value = '';
-    sortKeyKeluhan = '_i'; sortDirKeluhan = 1;   // kembali ke urutan sheet
+    sortKeyKeluhan = '_i'; sortDirKeluhan = -1;   // kembali ke default: keluhan terbaru di atas
     document.querySelectorAll('#keluhanTable thead th .arrow').forEach(a=>a.textContent='');
     renderKeluhanService();
   });
