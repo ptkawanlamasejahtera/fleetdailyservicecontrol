@@ -410,6 +410,12 @@
   #keluhanTable th.k-detail{width:100%;}
   #keluhanTable td.k-note{min-width:140px;max-width:260px;}
   #keluhanTable td.k-tgl{white-space:nowrap;}
+  .k-pager{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;font-size:12.5px;color:var(--text-dim);}
+  .k-pager-gap{flex:1;}
+  .k-pager label{display:flex;align-items:center;gap:6px;}
+  .k-pager input{width:76px;font:inherit;padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:var(--panel);color:inherit;}
+  .k-pager .reset-btn[disabled]{opacity:.4;cursor:not-allowed;}
+  body.compact .k-pager{display:none;}
   .k-act-btn{
     font:inherit;font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap;
     padding:5px 11px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--violet-deep);
@@ -808,6 +814,15 @@
         <div class="glyph">&#128269;</div>
         Tidak ada data keluhan yang cocok dengan filter ini.
       </div>
+    </div>
+    <div class="k-pager" id="keluhanPager">
+      <span id="kpgInfo" class="k-pager-info"></span>
+      <span class="k-pager-gap"></span>
+      <label>Baris per halaman
+        <input type="number" id="kpgSize" min="10" max="1000" step="10" value="50">
+      </label>
+      <button class="reset-btn" id="kpgPrev">&#9664; Sebelumnya</button>
+      <button class="reset-btn" id="kpgNext">Berikutnya &#9654;</button>
     </div>
   </div>
   </div><!-- /tab-page keluhan -->
@@ -1220,6 +1235,8 @@ function applyLiveJson(json, sourceLabel){
   DATA = cleanRows_(dailyRows);
   SUMMARY_ARMADA = summary;
   KELUHAN_DATA = cleanRows_(keluhanRows);
+  // hitung sekali di sini (bukan di tiap perbandingan sort/filter) — ini yang bikin tab Keluhan lemot
+  KELUHAN_DATA.forEach(function(r,i){ r._i = i; r._t = parseTgl(r.TanggalPengajuan || '').getTime(); });
   applyKeluhanOverlay_(syncedAt);
   rebuildFiltersAndRender();
   renderSummaryArmada();
@@ -1294,7 +1311,7 @@ let kelEditing = null;
 
 function kelStoreGet_(k){ try{ return JSON.parse(localStorage.getItem(k) || 'null'); }catch(e){ return null; } }
 function kelStoreSet_(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
-function kelEditKey_(r){ return [r.Row, r.Timestamp, r.KodeArmada].join('|'); }
+function kelEditKey_(r){ return [r.Timestamp, r.KodeArmada, r.Nopol, r.JenisKeluhan].join('|'); }
 
 // data.json di GitHub bisa tertinggal beberapa menit dari sheet. Edit yang baru
 // disimpan dari browser ini ditumpuk lagi di atas data itu, SELAMA data tersebut
@@ -1327,8 +1344,8 @@ function isoPlusDays_(n){
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 }
 
-function openKeluhanEdit(row){
-  const r = KELUHAN_DATA.find(x=>x.Row === row);
+function openKeluhanEdit(id){
+  const r = KELUHAN_DATA[id];
   if(!r) return;
   kelEditing = r;
   document.getElementById('kmodalTitle').textContent = (r.Plan ? 'Edit Keluhan — ' : 'Buat Plan — ') + (r.KodeArmada || '');
@@ -1372,7 +1389,7 @@ async function saveKeluhanEdit(){
       method:'POST',
       headers:{'Content-Type':'text/plain;charset=utf-8'},   // text/plain = tanpa preflight CORS
       body: JSON.stringify({
-        action:'updateKeluhan', pin, row:r.Row,
+        action:'updateKeluhan', pin, row:(r.Row||0),
         expected:{ Timestamp:r.Timestamp, KodeArmada:r.KodeArmada, Nopol:r.Nopol, JenisKeluhan:r.JenisKeluhan, DetailKeluhan:r.DetailKeluhan },
         fields
       })
@@ -1387,7 +1404,7 @@ async function saveKeluhanEdit(){
     delete store[oldKey];
     store[kelEditKey_(r)] = { t: Date.now(), fields: out.saved };
     kelStoreSet_(KEL_EDITS_KEY, store);
-    renderKeluhanService();
+    renderKeluhanService(true);
     closeKeluhanEdit();
   }catch(err){
     msg.className='kmodal-msg';
@@ -1400,8 +1417,8 @@ async function saveKeluhanEdit(){
 
 function initKeluhanEdit_(){
   document.getElementById('keluhanTableBody').addEventListener('click', ev=>{
-    const b = ev.target.closest('[data-edit-row]');
-    if(b) openKeluhanEdit(parseInt(b.getAttribute('data-edit-row'),10));
+    const b = ev.target.closest('[data-edit-id]');
+    if(b) openKeluhanEdit(parseInt(b.getAttribute('data-edit-id'),10));
   });
   document.getElementById('kmodalCancel').addEventListener('click', closeKeluhanEdit);
   document.getElementById('kmodalSave').addEventListener('click', saveKeluhanEdit);
@@ -1673,14 +1690,14 @@ function currentFilteredKeluhan(){
   const bu = fKeluhanBU.value;
   const status = fKeluhanStatus.value;
   const q = fKeluhanSearch.value.trim().toLowerCase();
-  let fromD = from ? parseTgl(from) : null;
-  let toD = to ? parseTgl(to) : null;
-  if(fromD && toD && fromD > toD){ [fromD,toD] = [toD,fromD]; }
+  let fromD = from ? parseTgl(from).getTime() : null;
+  let toD = to ? parseTgl(to).getTime() : null;
+  if(fromD !== null && toD !== null && fromD > toD){ [fromD,toD] = [toD,fromD]; }
   return KELUHAN_DATA.filter(r=>{
-    if(fromD || toD){
-      const rD = parseTgl(r.TanggalPengajuan);
-      if(fromD && rD < fromD) return false;
-      if(toD && rD > toD) return false;
+    if(fromD !== null || toD !== null){
+      const rD = r._t;
+      if(fromD !== null && rD < fromD) return false;
+      if(toD !== null && rD > toD) return false;
     }
     if(bu && r.BU !== bu) return false;
     if(status && r.Status !== status) return false;
@@ -1692,7 +1709,12 @@ function currentFilteredKeluhan(){
   });
 }
 
-function renderKeluhanService(){
+let keluhanPage = 1;
+let keluhanPageSize = 50;
+try{ const ps = parseInt(localStorage.getItem('keluhanPageSize'),10); if(ps>=10 && ps<=1000) keluhanPageSize = ps; }catch(e){}
+
+function renderKeluhanService(keepPage){
+  if(keepPage !== true) keluhanPage = 1;
   const tbody = document.getElementById('keluhanTableBody');
   if(!tbody) return;
 
@@ -1708,7 +1730,7 @@ function renderKeluhanService(){
   const sorted = [...rows].sort((a,b)=>{
     let av = a[sortKeyKeluhan] || '', bv = b[sortKeyKeluhan] || '';
     if(sortKeyKeluhan === 'TanggalPengajuan'){
-      av = parseTgl(av).getTime(); bv = parseTgl(bv).getTime();
+      av = a._t || 0; bv = b._t || 0;
     }
     if(av<bv) return -1*sortDirKeluhan;
     if(av>bv) return 1*sortDirKeluhan;
@@ -1718,11 +1740,20 @@ function renderKeluhanService(){
   const emptyState = document.getElementById('keluhanEmptyState');
   if(sorted.length===0){
     tbody.innerHTML = '';
+    const info0 = document.getElementById('kpgInfo'); if(info0) info0.textContent = '0 keluhan';
     emptyState.style.display = 'block';
   } else {
     emptyState.style.display = 'none';
-    tbody.innerHTML = sorted.map(r=>{
-      const canEdit = !!r.Row;
+    const totalPages = Math.max(1, Math.ceil(sorted.length / keluhanPageSize));
+    if(keluhanPage > totalPages) keluhanPage = totalPages;
+    const startIdx = (keluhanPage-1)*keluhanPageSize;
+    const pageRows = sorted.slice(startIdx, startIdx + keluhanPageSize);
+    const info = document.getElementById('kpgInfo');
+    if(info) info.textContent = (startIdx+1)+'–'+(startIdx+pageRows.length)+' dari '+sorted.length+' keluhan · hal. '+keluhanPage+'/'+totalPages;
+    const pb = document.getElementById('kpgPrev'), nb = document.getElementById('kpgNext');
+    if(pb) pb.disabled = keluhanPage<=1;
+    if(nb) nb.disabled = keluhanPage>=totalPages;
+    tbody.innerHTML = pageRows.map(r=>{
       const hasPlan = !!(r.Plan||'').toString().trim();
       return `
       <tr>
@@ -1738,9 +1769,7 @@ function renderKeluhanService(){
         <td class="detail k-tgl">${escK_(r.ActPerbaikan) || '—'}</td>
         <td><span class="status-chip ${isKeluhanDone(r.Status) ? 'status-keluhan-done' : 'status-keluhan-open'}">${escK_(r.Status) || '—'}</span></td>
         <td class="detail k-note">${escK_(r.Note) || '—'}</td>
-        <td class="col-aksi">${canEdit
-          ? `<button class="k-act-btn ${hasPlan?'':'plan'}" data-edit-row="${r.Row}">${hasPlan ? '&#9998; Edit' : '+ Plan'}</button>`
-          : `<button class="k-act-btn" disabled title="Data belum memuat nomor baris — tunggu sinkronisasi berikutnya atau klik Ambil Langsung dari Sheet">&#9998; Edit</button>`}</td>
+        <td class="col-aksi"><button class="k-act-btn ${hasPlan?'':'plan'}" data-edit-id="${r._i}">${hasPlan ? '&#9998; Edit' : '+ Plan'}</button></td>
       </tr>`;
     }).join('');
   }
@@ -2127,6 +2156,19 @@ document.querySelectorAll('#dataTable thead th').forEach(th=>{
   if(el) el.addEventListener('change', renderKeluhanService);
 });
 if(fKeluhanSearch) fKeluhanSearch.addEventListener('input', renderKeluhanService);
+(function(){
+  const sz = document.getElementById('kpgSize');
+  if(!sz) return;
+  sz.value = keluhanPageSize;
+  sz.addEventListener('change', ()=>{
+    let v = parseInt(sz.value,10); if(isNaN(v)) v = 50;
+    v = Math.min(1000, Math.max(10, v)); sz.value = v; keluhanPageSize = v;
+    try{ localStorage.setItem('keluhanPageSize', String(v)); }catch(e){}
+    renderKeluhanService();
+  });
+  document.getElementById('kpgPrev').addEventListener('click', ()=>{ keluhanPage--; renderKeluhanService(true); });
+  document.getElementById('kpgNext').addEventListener('click', ()=>{ keluhanPage++; renderKeluhanService(true); });
+})();
 const keluhanResetBtn = document.getElementById('keluhanResetBtn');
 if(keluhanResetBtn){
   keluhanResetBtn.addEventListener('click', ()=>{
