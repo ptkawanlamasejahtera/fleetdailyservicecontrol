@@ -404,6 +404,48 @@
     .topbar{flex-direction:column;align-items:flex-start;gap:12px;}
   }
 
+  /* ===== Tabel Keluhan Service: kolom Detail menyerap sisa lebar (tidak ada celah di samping Jenis Keluhan) ===== */
+  #keluhanTable td.k-jenis{white-space:normal;width:190px;min-width:150px;max-width:210px;}
+  #keluhanTable td.k-detail{width:100%;min-width:260px;max-width:none;}
+  #keluhanTable th.k-detail{width:100%;}
+  #keluhanTable td.k-note{min-width:140px;max-width:260px;}
+  #keluhanTable td.k-tgl{white-space:nowrap;}
+  .k-act-btn{
+    font:inherit;font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap;
+    padding:5px 11px;border-radius:8px;border:1px solid var(--border);background:var(--panel);color:var(--violet-deep);
+  }
+  .k-act-btn:hover{border-color:var(--violet);background:var(--panel-soft);}
+  .k-act-btn.plan{background:var(--violet);border-color:var(--violet);color:#fff;}
+  .k-act-btn.plan:hover{filter:brightness(1.08);}
+  .k-act-btn[disabled]{opacity:.45;cursor:not-allowed;}
+  body.compact .col-aksi{display:none;}
+
+  /* ===== Modal Edit Keluhan ===== */
+  .kmodal-back{position:fixed;inset:0;background:rgba(24,20,56,.45);display:none;align-items:center;justify-content:center;z-index:9999;padding:16px;}
+  .kmodal-back.open{display:flex;}
+  .kmodal{background:var(--panel);border-radius:16px;width:100%;max-width:560px;max-height:92vh;overflow:auto;box-shadow:0 24px 60px -12px rgba(30,20,80,.45);}
+  .kmodal-head{padding:18px 22px 12px;border-bottom:1px solid var(--border);}
+  .kmodal-head h3{margin:0 0 4px;font-size:16px;}
+  .kmodal-info{font-size:12px;color:var(--text-dim);line-height:1.5;}
+  .kmodal-body{padding:16px 22px;display:grid;grid-template-columns:1fr 1fr;gap:12px 14px;}
+  .kmodal-body .full{grid-column:1 / -1;}
+  .kmodal-body label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-faint);margin-bottom:5px;}
+  .kmodal-body input,.kmodal-body textarea{
+    width:100%;box-sizing:border-box;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:9px;background:var(--panel);color:inherit;
+  }
+  .kmodal-body input:focus,.kmodal-body textarea:focus{outline:2px solid var(--violet);outline-offset:-1px;}
+  .kmodal-body textarea{min-height:64px;resize:vertical;}
+  .kmodal-quick{margin-top:5px;display:flex;gap:6px;}
+  .kmodal-quick button{font:inherit;font-size:11px;font-weight:600;padding:3px 9px;border-radius:7px;border:1px solid var(--border);background:var(--panel-soft);color:var(--text-dim);cursor:pointer;}
+  .kmodal-quick button:hover{border-color:var(--violet);color:var(--violet-deep);}
+  .kmodal-foot{padding:12px 22px 18px;display:flex;align-items:center;gap:10px;justify-content:flex-end;border-top:1px solid var(--border);}
+  .kmodal-msg{flex:1;font-size:12px;color:#E1364F;}
+  .kmodal-msg.ok{color:#0A9A83;}
+  .kmodal-btn{font:inherit;font-size:13px;font-weight:700;padding:9px 18px;border-radius:10px;cursor:pointer;border:1px solid var(--border);background:var(--panel);color:var(--text-dim);}
+  .kmodal-btn.primary{background:var(--violet);border-color:var(--violet);color:#fff;}
+  .kmodal-btn[disabled]{opacity:.6;cursor:wait;}
+  @media (max-width:560px){ .kmodal-body{grid-template-columns:1fr;} }
+
   /* ===== MODE SCREENSHOT (compact) ===== */
   body.compact .wrap{max-width:1340px;padding:4px 22px 16px;}
   body.compact .topbar{padding:12px 22px;}
@@ -751,12 +793,13 @@
             <th data-key="BU">BU<span class="arrow"></span></th>
             <th data-key="NamaKaryawan">Nama Karyawan<span class="arrow"></span></th>
             <th data-key="JenisKeluhan">Jenis Keluhan<span class="arrow"></span></th>
-            <th data-key="DetailKeluhan">Detail Keluhan</th>
+            <th data-key="DetailKeluhan" class="k-detail">Detail Keluhan</th>
             <th data-key="PICSupport">PIC Support</th>
             <th data-key="Plan">Plan</th>
             <th data-key="ActPerbaikan">Act Perbaikan</th>
             <th data-key="Status">Status<span class="arrow"></span></th>
             <th data-key="Note">Note</th>
+            <th class="col-aksi" style="cursor:default;">Aksi</th>
           </tr>
         </thead>
         <tbody id="keluhanTableBody"></tbody>
@@ -1177,6 +1220,7 @@ function applyLiveJson(json, sourceLabel){
   DATA = cleanRows_(dailyRows);
   SUMMARY_ARMADA = summary;
   KELUHAN_DATA = cleanRows_(keluhanRows);
+  applyKeluhanOverlay_(syncedAt);
   rebuildFiltersAndRender();
   renderSummaryArmada();
 
@@ -1238,6 +1282,145 @@ async function loadFromSheetDirect(){
     setLiveStatus('error', 'Gagal baca sheet langsung (' + err.message + ') — coba Refresh Data biasa');
   }
 }
+
+
+// ====================== EDIT KELUHAN SERVICE ======================
+function escK_(v){
+  return String(v == null ? '' : v).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+const KEL_EDITS_KEY = 'keluhanEdits_v1';
+const KEL_PIN_KEY = 'keluhanEditPin';
+let kelEditing = null;
+
+function kelStoreGet_(k){ try{ return JSON.parse(localStorage.getItem(k) || 'null'); }catch(e){ return null; } }
+function kelStoreSet_(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+function kelEditKey_(r){ return [r.Row, r.Timestamp, r.KodeArmada].join('|'); }
+
+// data.json di GitHub bisa tertinggal beberapa menit dari sheet. Edit yang baru
+// disimpan dari browser ini ditumpuk lagi di atas data itu, SELAMA data tersebut
+// memang lebih lama dari waktu edit. Setelah sinkronisasi berikutnya membawa
+// perubahan itu, catatan edit otomatis dibuang.
+function applyKeluhanOverlay_(syncedAt){
+  const store = kelStoreGet_(KEL_EDITS_KEY) || {};
+  const syncMs = syncedAt ? new Date(syncedAt).getTime() : null;
+  const now = Date.now();
+  let changed = false;
+  Object.keys(store).forEach(k=>{
+    const e = store[k];
+    if(!syncMs || e.t <= syncMs || now - e.t > 3*24*3600*1000){ delete store[k]; changed = true; }
+  });
+  if(changed) kelStoreSet_(KEL_EDITS_KEY, store);
+  KELUHAN_DATA.forEach(r=>{
+    const e = store[kelEditKey_(r)];
+    if(e) Object.assign(r, e.fields);
+  });
+}
+
+function toInputDate_(s){
+  if(!s) return '';
+  const d = parseTgl(String(s));
+  if(!d || isNaN(d.getTime()) || d.getTime() === new Date(0).getTime()) return '';
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function isoPlusDays_(n){
+  const d = new Date(); d.setDate(d.getDate()+n);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+function openKeluhanEdit(row){
+  const r = KELUHAN_DATA.find(x=>x.Row === row);
+  if(!r) return;
+  kelEditing = r;
+  document.getElementById('kmodalTitle').textContent = (r.Plan ? 'Edit Keluhan — ' : 'Buat Plan — ') + (r.KodeArmada || '');
+  document.getElementById('kmodalInfo').innerHTML =
+    '<b>'+escK_(r.KodeArmada)+'</b> · '+escK_(r.Nopol)+' · '+escK_(r.BU)+'<br>'+
+    escK_(r.JenisKeluhan)+' — '+escK_(r.DetailKeluhan);
+  document.getElementById('kfPlan').value = toInputDate_(r.Plan);
+  document.getElementById('kfAct').value = toInputDate_(r.ActPerbaikan);
+  document.getElementById('kfPIC').value = r.PICSupport || '';
+  document.getElementById('kfStatus').value = r.Status || '';
+  document.getElementById('kfNote').value = r.Note || '';
+  let pin = ''; try{ pin = sessionStorage.getItem(KEL_PIN_KEY) || ''; }catch(e){}
+  document.getElementById('kfPin').value = pin;
+  document.getElementById('kfStatusList').innerHTML =
+    uniqSorted(KELUHAN_DATA.map(x=>x.Status).filter(Boolean)).map(v=>'<option value="'+escK_(v)+'">').join('');
+  const msg = document.getElementById('kmodalMsg'); msg.textContent = ''; msg.className = 'kmodal-msg';
+  document.getElementById('kmodalBack').classList.add('open');
+  setTimeout(()=>document.getElementById(pin ? 'kfPlan' : 'kfPin').focus(), 30);
+}
+function closeKeluhanEdit(){
+  document.getElementById('kmodalBack').classList.remove('open');
+  kelEditing = null;
+}
+
+async function saveKeluhanEdit(){
+  const r = kelEditing; if(!r) return;
+  const msg = document.getElementById('kmodalMsg');
+  const btn = document.getElementById('kmodalSave');
+  const pin = document.getElementById('kfPin').value;
+  if(!pin){ msg.className='kmodal-msg'; msg.textContent='Isi PIN dulu.'; return; }
+  const fields = {
+    Plan: document.getElementById('kfPlan').value,
+    ActPerbaikan: document.getElementById('kfAct').value,
+    PICSupport: document.getElementById('kfPIC').value.trim(),
+    Status: document.getElementById('kfStatus').value.trim(),
+    Note: document.getElementById('kfNote').value.trim()
+  };
+  btn.disabled = true; msg.className='kmodal-msg'; msg.textContent='Menyimpan ke sheet...';
+  try{
+    const res = await fetch(APPS_SCRIPT_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},   // text/plain = tanpa preflight CORS
+      body: JSON.stringify({
+        action:'updateKeluhan', pin, row:r.Row,
+        expected:{ Timestamp:r.Timestamp, KodeArmada:r.KodeArmada, Nopol:r.Nopol, JenisKeluhan:r.JenisKeluhan, DetailKeluhan:r.DetailKeluhan },
+        fields
+      })
+    });
+    const out = await res.json();
+    if(!out.ok) throw new Error(out.error || 'Gagal menyimpan');
+    try{ sessionStorage.setItem(KEL_PIN_KEY, pin); }catch(e){}
+    const oldKey = kelEditKey_(r);
+    r.Row = out.row;                     // jaga-jaga kalau baris di sheet bergeser
+    Object.assign(r, out.saved);
+    const store = kelStoreGet_(KEL_EDITS_KEY) || {};
+    delete store[oldKey];
+    store[kelEditKey_(r)] = { t: Date.now(), fields: out.saved };
+    kelStoreSet_(KEL_EDITS_KEY, store);
+    renderKeluhanService();
+    closeKeluhanEdit();
+  }catch(err){
+    msg.className='kmodal-msg';
+    msg.textContent = (err && err.message ? err.message : String(err));
+    if(/PIN salah/i.test(msg.textContent)){ try{ sessionStorage.removeItem(KEL_PIN_KEY); }catch(e){} }
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+function initKeluhanEdit_(){
+  document.getElementById('keluhanTableBody').addEventListener('click', ev=>{
+    const b = ev.target.closest('[data-edit-row]');
+    if(b) openKeluhanEdit(parseInt(b.getAttribute('data-edit-row'),10));
+  });
+  document.getElementById('kmodalCancel').addEventListener('click', closeKeluhanEdit);
+  document.getElementById('kmodalSave').addEventListener('click', saveKeluhanEdit);
+  document.getElementById('kmodalBack').addEventListener('mousedown', ev=>{ if(ev.target.id==='kmodalBack') closeKeluhanEdit(); });
+  document.addEventListener('keydown', ev=>{
+    if(ev.key==='Escape' && kelEditing) closeKeluhanEdit();
+    if(ev.key==='Enter' && kelEditing && ev.target.tagName==='INPUT') saveKeluhanEdit();
+  });
+  document.querySelectorAll('.kmodal-quick button').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      const el = document.getElementById(b.getAttribute('data-fill'));
+      const a = b.getAttribute('data-add');
+      el.value = a === 'clear' ? '' : isoPlusDays_(parseInt(a,10));
+    });
+  });
+}
+// modal berada di bawah <script> ini, jadi tunggu DOM selesai dibaca dulu
+if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initKeluhanEdit_);
+else initKeluhanEdit_();
 
 const ROW_PALETTE = ['#7C5CFC','#0FC2A6','#FF6B6B','#3D8BFF','#FFB020','#F5479C','#8BD450','#B366F0','#FF8A5C','#2FB8D4'];
 function rowColor(name){
@@ -1538,21 +1721,28 @@ function renderKeluhanService(){
     emptyState.style.display = 'block';
   } else {
     emptyState.style.display = 'none';
-    tbody.innerHTML = sorted.map(r=>`
+    tbody.innerHTML = sorted.map(r=>{
+      const canEdit = !!r.Row;
+      const hasPlan = !!(r.Plan||'').toString().trim();
+      return `
       <tr>
-        <td class="mono" style="white-space:nowrap;color:var(--text-dim);font-size:12px;">${r.TanggalPengajuan || '—'}</td>
-        <td class="kode">${r.KodeArmada || '—'}</td>
-        <td class="nopol">${r.Nopol || '—'}</td>
-        <td class="bu"><span class="bu-chip">${r.BU || '—'}</span></td>
-        <td style="white-space:nowrap;">${r.NamaKaryawan || '—'}</td>
-        <td style="white-space:nowrap;">${r.JenisKeluhan || '—'}</td>
-        <td class="detail">${r.DetailKeluhan || '—'}</td>
-        <td style="white-space:nowrap;">${r.PICSupport || '—'}</td>
-        <td class="detail">${r.Plan || '—'}</td>
-        <td class="detail">${r.ActPerbaikan || '—'}</td>
-        <td><span class="status-chip ${isKeluhanDone(r.Status) ? 'status-keluhan-done' : 'status-keluhan-open'}">${r.Status || '—'}</span></td>
-        <td class="detail">${r.Note || '—'}</td>
-      </tr>`).join('');
+        <td class="mono" style="white-space:nowrap;color:var(--text-dim);font-size:12px;">${escK_(r.TanggalPengajuan) || '—'}</td>
+        <td class="kode">${escK_(r.KodeArmada) || '—'}</td>
+        <td class="nopol">${escK_(r.Nopol) || '—'}</td>
+        <td class="bu"><span class="bu-chip">${escK_(r.BU) || '—'}</span></td>
+        <td style="white-space:nowrap;">${escK_(r.NamaKaryawan) || '—'}</td>
+        <td class="k-jenis">${escK_(r.JenisKeluhan) || '—'}</td>
+        <td class="detail k-detail">${escK_(r.DetailKeluhan) || '—'}</td>
+        <td style="white-space:nowrap;">${escK_(r.PICSupport) || '—'}</td>
+        <td class="detail k-tgl">${escK_(r.Plan) || '—'}</td>
+        <td class="detail k-tgl">${escK_(r.ActPerbaikan) || '—'}</td>
+        <td><span class="status-chip ${isKeluhanDone(r.Status) ? 'status-keluhan-done' : 'status-keluhan-open'}">${escK_(r.Status) || '—'}</span></td>
+        <td class="detail k-note">${escK_(r.Note) || '—'}</td>
+        <td class="col-aksi">${canEdit
+          ? `<button class="k-act-btn ${hasPlan?'':'plan'}" data-edit-row="${r.Row}">${hasPlan ? '&#9998; Edit' : '+ Plan'}</button>`
+          : `<button class="k-act-btn" disabled title="Data belum memuat nomor baris — tunggu sinkronisasi berikutnya atau klik Ambil Langsung dari Sheet">&#9998; Edit</button>`}</td>
+      </tr>`;
+    }).join('');
   }
 
   updateTabBadges();
@@ -1720,11 +1910,12 @@ function render(){
     options:{
       indexAxis:'y',
       responsive:true, maintainAspectRatio:false,
+      layout:{ padding:{ right:32 } },
       plugins:{ legend:{display:false},
         tooltip:{ backgroundColor:'#fff', borderColor:'#EAECF6', borderWidth:1, padding:10, titleColor:'#191B2E', bodyColor:'#191B2E', titleFont:{weight:700} },
         datalabels:{ display:true, anchor:'end', align:'end', offset:4, color:'#43465C', font:{weight:700, size:11.5}, formatter:(v)=>v } },
       scales:{
-        x:{ beginAtZero:true, ticks:{color:'#A0A4BD', font:{size:11}, precision:0}, grid:{color:'#EFF0F9'} },
+        x:{ beginAtZero:true, suggestedMax: Math.max(...catEntries.map(e=>e[1]),1)*1.2, ticks:{color:'#A0A4BD', font:{size:11}, precision:0}, grid:{color:'#EFF0F9'} },
         y:{ ticks:{color:'#43465C', font:{size:11.5, weight:500}}, grid:{display:false} }
       }
     }
@@ -1809,11 +2000,12 @@ function render(){
     options:{
       indexAxis:'y',
       responsive:true, maintainAspectRatio:false,
+      layout:{ padding:{ right:32 } },
       plugins:{ legend:{display:false},
         tooltip:{ backgroundColor:'#fff', borderColor:'#EAECF6', borderWidth:1, padding:10, titleColor:'#191B2E', bodyColor:'#191B2E' },
         datalabels:{ display:true, anchor:'end', align:'end', offset:4, color:'#43465C', font:{weight:700, size:11.5}, formatter:(v)=>v } },
       scales:{
-        x:{ beginAtZero:true, ticks:{color:'#A0A4BD', font:{size:11}, precision:0}, grid:{color:'#EFF0F9'} },
+        x:{ beginAtZero:true, suggestedMax: Math.max(...typeEntries.map(e=>e[1]),1)*1.2, ticks:{color:'#A0A4BD', font:{size:11}, precision:0}, grid:{color:'#EFF0F9'} },
         y:{ ticks:{color:'#43465C', font:{size:11, weight:500}}, grid:{display:false} }
       }
     }
@@ -2005,5 +2197,49 @@ function updateTabBadges(){
 rebuildFiltersAndRender();
 renderSummaryArmada();
 </script>
+
+<!-- Modal Edit Keluhan Service -->
+<div class="kmodal-back" id="kmodalBack" aria-hidden="true">
+  <div class="kmodal" role="dialog" aria-modal="true" aria-labelledby="kmodalTitle">
+    <div class="kmodal-head">
+      <h3 id="kmodalTitle">Edit Keluhan</h3>
+      <div class="kmodal-info" id="kmodalInfo"></div>
+    </div>
+    <div class="kmodal-body">
+      <div>
+        <label for="kfPlan">Plan (tanggal)</label>
+        <input type="date" id="kfPlan">
+        <div class="kmodal-quick"><button type="button" data-fill="kfPlan" data-add="0">Hari ini</button><button type="button" data-fill="kfPlan" data-add="1">Besok</button><button type="button" data-fill="kfPlan" data-add="clear">Kosongkan</button></div>
+      </div>
+      <div>
+        <label for="kfAct">Act Perbaikan (tanggal)</label>
+        <input type="date" id="kfAct">
+        <div class="kmodal-quick"><button type="button" data-fill="kfAct" data-add="0">Hari ini</button><button type="button" data-fill="kfAct" data-add="clear">Kosongkan</button></div>
+      </div>
+      <div>
+        <label for="kfPIC">PIC Support</label>
+        <input type="text" id="kfPIC" maxlength="120">
+      </div>
+      <div>
+        <label for="kfStatus">Status</label>
+        <input type="text" id="kfStatus" list="kfStatusList" maxlength="60" placeholder="cth: DONE">
+        <datalist id="kfStatusList"></datalist>
+      </div>
+      <div class="full">
+        <label for="kfNote">Note</label>
+        <textarea id="kfNote" maxlength="500"></textarea>
+      </div>
+      <div class="full">
+        <label for="kfPin">PIN Edit</label>
+        <input type="password" id="kfPin" autocomplete="off" placeholder="PIN dari admin">
+      </div>
+    </div>
+    <div class="kmodal-foot">
+      <div class="kmodal-msg" id="kmodalMsg"></div>
+      <button type="button" class="kmodal-btn" id="kmodalCancel">Batal</button>
+      <button type="button" class="kmodal-btn primary" id="kmodalSave">Simpan ke Sheet</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
