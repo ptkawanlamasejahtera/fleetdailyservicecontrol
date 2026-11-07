@@ -436,10 +436,10 @@
   .kmodal-body{padding:16px 22px;display:grid;grid-template-columns:1fr 1fr;gap:12px 14px;}
   .kmodal-body .full{grid-column:1 / -1;}
   .kmodal-body label{display:block;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-faint);margin-bottom:5px;}
-  .kmodal-body input,.kmodal-body textarea{
+  .kmodal-body input,.kmodal-body select,.kmodal-body textarea{
     width:100%;box-sizing:border-box;font:inherit;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:9px;background:var(--panel);color:inherit;
   }
-  .kmodal-body input:focus,.kmodal-body textarea:focus{outline:2px solid var(--violet);outline-offset:-1px;}
+  .kmodal-body input:focus,.kmodal-body select:focus,.kmodal-body textarea:focus{outline:2px solid var(--violet);outline-offset:-1px;}
   .kmodal-body textarea{min-height:64px;resize:vertical;}
   .kmodal-quick{margin-top:5px;display:flex;gap:6px;}
   .kmodal-quick button{font:inherit;font-size:11px;font-weight:600;padding:3px 9px;border-radius:7px;border:1px solid var(--border);background:var(--panel-soft);color:var(--text-dim);cursor:pointer;}
@@ -449,6 +449,7 @@
   .kmodal-msg.ok{color:#0A9A83;}
   .kmodal-btn{font:inherit;font-size:13px;font-weight:700;padding:9px 18px;border-radius:10px;cursor:pointer;border:1px solid var(--border);background:var(--panel);color:var(--text-dim);}
   .kmodal-btn.primary{background:var(--violet);border-color:var(--violet);color:#fff;}
+  .kmodal-btn.wa{background:#25D366;border-color:#25D366;color:#fff;text-decoration:none;display:inline-block;}
   .kmodal-btn[disabled]{opacity:.6;cursor:wait;}
   @media (max-width:560px){ .kmodal-body{grid-template-columns:1fr;} }
 
@@ -1306,7 +1307,7 @@ function escK_(v){
   return String(v == null ? '' : v).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 const KEL_EDITS_KEY = 'keluhanEdits_v1';
-const KEL_PIN_KEY = 'keluhanEditPin';
+const KEL_PIC_LIST = ['Theo','Misbah','Jemi','Sito','Risa'];
 let kelEditing = null;
 
 function kelStoreGet_(k){ try{ return JSON.parse(localStorage.getItem(k) || 'null'); }catch(e){ return null; } }
@@ -1354,16 +1355,23 @@ function openKeluhanEdit(id){
     escK_(r.JenisKeluhan)+' — '+escK_(r.DetailKeluhan);
   document.getElementById('kfPlan').value = toInputDate_(r.Plan);
   document.getElementById('kfAct').value = toInputDate_(r.ActPerbaikan);
-  document.getElementById('kfPIC').value = r.PICSupport || '';
+  const picEl = document.getElementById('kfPIC');
+  const picCur = (r.PICSupport || '').trim();
+  const picOpts = KEL_PIC_LIST.slice();
+  if(picCur && !picOpts.some(n=>n.toLowerCase()===picCur.toLowerCase())) picOpts.push(picCur); // nilai lama di sheet tetap bisa dipertahankan
+  picEl.innerHTML = '<option value="">— pilih PIC —</option>' + picOpts.map(n=>'<option value="'+escK_(n)+'">'+escK_(n)+'</option>').join('');
+  const picMatch = picOpts.find(n=>n.toLowerCase()===picCur.toLowerCase());
+  picEl.value = picMatch || '';
   document.getElementById('kfStatus').value = r.Status || '';
   document.getElementById('kfNote').value = r.Note || '';
-  let pin = ''; try{ pin = sessionStorage.getItem(KEL_PIN_KEY) || ''; }catch(e){}
-  document.getElementById('kfPin').value = pin;
   document.getElementById('kfStatusList').innerHTML =
     uniqSorted(KELUHAN_DATA.map(x=>x.Status).filter(Boolean)).map(v=>'<option value="'+escK_(v)+'">').join('');
   const msg = document.getElementById('kmodalMsg'); msg.textContent = ''; msg.className = 'kmodal-msg';
+  document.getElementById('kmodalWA').style.display = 'none';
+  document.getElementById('kmodalSave').style.display = '';
+  document.getElementById('kmodalCancel').textContent = 'Batal';
   document.getElementById('kmodalBack').classList.add('open');
-  setTimeout(()=>document.getElementById(pin ? 'kfPlan' : 'kfPin').focus(), 30);
+  setTimeout(()=>document.getElementById('kfPlan').focus(), 30);
 }
 function closeKeluhanEdit(){
   document.getElementById('kmodalBack').classList.remove('open');
@@ -1374,29 +1382,26 @@ async function saveKeluhanEdit(){
   const r = kelEditing; if(!r) return;
   const msg = document.getElementById('kmodalMsg');
   const btn = document.getElementById('kmodalSave');
-  const pin = document.getElementById('kfPin').value;
-  if(!pin){ msg.className='kmodal-msg'; msg.textContent='Isi PIN dulu.'; return; }
   const fields = {
     Plan: document.getElementById('kfPlan').value,
     ActPerbaikan: document.getElementById('kfAct').value,
-    PICSupport: document.getElementById('kfPIC').value.trim(),
+    PICSupport: document.getElementById('kfPIC').value,
     Status: document.getElementById('kfStatus').value.trim(),
     Note: document.getElementById('kfNote').value.trim()
   };
-  btn.disabled = true; msg.className='kmodal-msg'; msg.textContent='Menyimpan ke sheet...';
+  btn.disabled = true; msg.className='kmodal-msg'; msg.textContent='Menyimpan...';
   try{
     const res = await fetch(APPS_SCRIPT_URL, {
       method:'POST',
       headers:{'Content-Type':'text/plain;charset=utf-8'},   // text/plain = tanpa preflight CORS
       body: JSON.stringify({
-        action:'updateKeluhan', pin, row:(r.Row||0),
+        action:'updateKeluhan', row:(r.Row||0),
         expected:{ Timestamp:r.Timestamp, KodeArmada:r.KodeArmada, Nopol:r.Nopol, JenisKeluhan:r.JenisKeluhan, DetailKeluhan:r.DetailKeluhan },
         fields
       })
     });
     const out = await res.json();
     if(!out.ok) throw new Error(out.error || 'Gagal menyimpan');
-    try{ sessionStorage.setItem(KEL_PIN_KEY, pin); }catch(e){}
     const oldKey = kelEditKey_(r);
     r.Row = out.row;                     // jaga-jaga kalau baris di sheet bergeser
     Object.assign(r, out.saved);
@@ -1405,11 +1410,21 @@ async function saveKeluhanEdit(){
     store[kelEditKey_(r)] = { t: Date.now(), fields: out.saved };
     kelStoreSet_(KEL_EDITS_KEY, store);
     renderKeluhanService(true);
-    closeKeluhanEdit();
+    if(out.wa && out.wa.url){
+      // Plan baru disimpan: tawarkan kirim WA (user klik sendiri -> tidak diblok popup blocker)
+      const wa = document.getElementById('kmodalWA');
+      wa.href = out.wa.url;
+      wa.textContent = '\uD83D\uDCAC Kirim WA ke ' + (out.wa.name || 'karyawan');
+      wa.style.display = '';
+      document.getElementById('kmodalSave').style.display = 'none';
+      document.getElementById('kmodalCancel').textContent = 'Tutup';
+      msg.className = 'kmodal-msg ok'; msg.textContent = 'Tersimpan ke sheet.';
+    } else {
+      closeKeluhanEdit();
+    }
   }catch(err){
     msg.className='kmodal-msg';
     msg.textContent = (err && err.message ? err.message : String(err));
-    if(/PIN salah/i.test(msg.textContent)){ try{ sessionStorage.removeItem(KEL_PIN_KEY); }catch(e){} }
   }finally{
     btn.disabled = false;
   }
@@ -2260,7 +2275,7 @@ renderSummaryArmada();
       </div>
       <div>
         <label for="kfPIC">PIC Support</label>
-        <input type="text" id="kfPIC" maxlength="120">
+        <select id="kfPIC"></select>
       </div>
       <div>
         <label for="kfStatus">Status</label>
@@ -2271,15 +2286,12 @@ renderSummaryArmada();
         <label for="kfNote">Note</label>
         <textarea id="kfNote" maxlength="500"></textarea>
       </div>
-      <div class="full">
-        <label for="kfPin">PIN Edit</label>
-        <input type="password" id="kfPin" autocomplete="off" placeholder="PIN dari admin">
-      </div>
     </div>
     <div class="kmodal-foot">
       <div class="kmodal-msg" id="kmodalMsg"></div>
       <button type="button" class="kmodal-btn" id="kmodalCancel">Batal</button>
-      <button type="button" class="kmodal-btn primary" id="kmodalSave">Simpan ke Sheet</button>
+      <a class="kmodal-btn wa" id="kmodalWA" href="#" target="_blank" rel="noopener" style="display:none;">&#128172; Kirim WA</a>
+      <button type="button" class="kmodal-btn primary" id="kmodalSave">Simpan</button>
     </div>
   </div>
 </div>
