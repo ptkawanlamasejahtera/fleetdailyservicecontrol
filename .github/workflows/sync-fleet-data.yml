@@ -22,7 +22,7 @@ jobs:
       - name: Ambil data terbaru dari Apps Script
         run: |
           curl -sL --fail --max-time 60 \
-            "https://script.google.com/macros/s/AKfycbw41oPEoWHSecaueq-cBa-kXohm5tJPqaK4fiy8FYf-VjeyVbEZ4JGQM5ycPebD_X7J/exec" \
+            "https://script.google.com/macros/s/AKfycbwA-p8W1vYnivQod0qHq4UxOliViibqxPnvE8pBngrs11SPeRtTQd4x8Q0W5ebhm2_6/exec" \
             -o data.json
 
       - name: Validasi hasil (harus JSON valid & tidak kosong)
