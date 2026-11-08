@@ -293,6 +293,8 @@
   .status-pendingmr{background:#FCEBD1;color:#9A6410;}
   .status-keluhan-done{background:#D7FAF2;color:#0A9A83;}
   .status-keluhan-open{background:#FFF1D6;color:#B4780A;}
+  .status-keluhan-new{background:#FFE3E6;color:#E1364F;}
+  .status-keluhan-proses{background:#E3EDFF;color:#2F6BFF;}
   .jam-selesai{font-size:10.5px;color:var(--selesai);font-weight:600;margin-top:4px;font-family:'JetBrains Mono';}
   .keterangan-pending{font-size:10.5px;color:#9A6410;font-weight:600;margin-top:4px;max-width:160px;white-space:normal;}
   .pmr-card-row{display:flex;}
@@ -455,6 +457,8 @@
   .kmodal-btn.primary{background:var(--violet);border-color:var(--violet);color:#fff;}
   #autoToast{position:fixed;right:20px;bottom:20px;background:#1B1740;color:#fff;padding:11px 18px;border-radius:12px;font-size:13px;font-weight:600;box-shadow:0 10px 30px -8px rgba(0,0,0,.4);opacity:0;transform:translateY(10px);transition:.25s;pointer-events:none;z-index:10000;}
   #autoToast.show{opacity:1;transform:none;}
+  #autoToast{display:flex;align-items:center;gap:14px;}
+  #autoToast .toast-act{background:#25D366;color:#fff;border:0;border-radius:8px;padding:6px 12px;font:inherit;font-weight:700;cursor:pointer;text-decoration:none;white-space:nowrap;}
   .kmodal-btn.wa{background:#25D366;border-color:#25D366;color:#fff;text-decoration:none;display:inline-block;}
   .kmodal-btn[disabled]{opacity:.6;cursor:wait;}
   @media (max-width:560px){ .kmodal-body{grid-template-columns:1fr;} }
@@ -750,20 +754,28 @@
           <div class="pmr-card-sub" id="kpiKeluhanTotalSub">sesuai filter</div>
         </div>
       </div>
-      <div class="pmr-card delay-card" style="margin-left:14px;">
-        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 7v5l3 3"/></svg></div>
-        <div>
-          <div class="pmr-card-label">Belum Selesai</div>
-          <div class="pmr-card-value" id="kpiKeluhanBelumSelesai">0</div>
-          <div class="pmr-card-sub" id="kpiKeluhanBelumSelesaiSub">status selain DONE</div>
-        </div>
-      </div>
       <div class="pmr-card" style="margin-left:14px;background:#FFE3E6;">
         <div class="icon" style="color:#E1364F;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg></div>
         <div>
-          <div class="pmr-card-label" style="color:#E1364F;">Keluhan Baru</div>
-          <div class="pmr-card-value" id="kpiKeluhanBaru" style="color:#E1364F;">0</div>
-          <div class="pmr-card-sub" id="kpiKeluhanBaruSub" style="color:#D46B7A;">belum ada tanggal Plan</div>
+          <div class="pmr-card-label" style="color:#E1364F;">NEW</div>
+          <div class="pmr-card-value" id="kpiKeluhanNew" style="color:#E1364F;">0</div>
+          <div class="pmr-card-sub" style="color:#D46B7A;">keluhan baru masuk</div>
+        </div>
+      </div>
+      <div class="pmr-card" style="margin-left:14px;background:#FFF1D6;">
+        <div class="icon" style="color:#B7791F;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 7v5l3 3"/></svg></div>
+        <div>
+          <div class="pmr-card-label" style="color:#B7791F;">OPEN</div>
+          <div class="pmr-card-value" id="kpiKeluhanOpen" style="color:#B7791F;">0</div>
+          <div class="pmr-card-sub" style="color:#C99A4A;">sudah diplanning</div>
+        </div>
+      </div>
+      <div class="pmr-card" style="margin-left:14px;background:#E3EEFF;">
+        <div class="icon" style="color:#2F6FDB;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.4 2.4-2.6-.6-.6-2.6z"/></svg></div>
+        <div>
+          <div class="pmr-card-label" style="color:#2F6FDB;">PROSES</div>
+          <div class="pmr-card-value" id="kpiKeluhanProses" style="color:#2F6FDB;">0</div>
+          <div class="pmr-card-sub" style="color:#6C93D6;">sedang dikerjakan</div>
         </div>
       </div>
     </div>
@@ -1243,7 +1255,7 @@ function applyLiveJson(json, sourceLabel){
   SUMMARY_ARMADA = summary;
   KELUHAN_DATA = cleanRows_(keluhanRows);
   // hitung sekali di sini (bukan di tiap perbandingan sort/filter) — ini yang bikin tab Keluhan lemot
-  KELUHAN_DATA.forEach(function(r,i){ r._i = i; r._t = parseTgl(r.TanggalPengajuan || '').getTime(); });
+  KELUHAN_DATA.forEach(function(r,i){ r._i = i; r._t = parseTgl(r.TanggalPengajuan || '').getTime(); r.Status = normKeluhanStatus_(r.Status); });
   applyKeluhanOverlay_(syncedAt);
   rebuildFiltersAndRender();
   renderSummaryArmada();
@@ -1332,15 +1344,25 @@ function autoRestoreUi_(snap){
     } else el.value = snap[id];
   });
 }
-function showToast_(text){
+function showToast_(text, ms, action){
   let t = document.getElementById('autoToast');
   if(!t){ t = document.createElement('div'); t.id = 'autoToast'; document.body.appendChild(t); }
-  t.textContent = text; t.classList.add('show');
-  clearTimeout(showToast_.tm); showToast_.tm = setTimeout(()=>t.classList.remove('show'), 5000);
+  t.textContent = '';
+  const sp = document.createElement('span'); sp.textContent = text; t.appendChild(sp);
+  if(action){
+    const el = document.createElement(action.href ? 'a' : 'button');
+    el.className = 'toast-act'; el.textContent = action.label;
+    if(action.href){ el.href = action.href; el.target = '_blank'; el.rel = 'noopener'; }
+    el.addEventListener('click', ()=>{ if(action.onClick) action.onClick(); t.classList.remove('show'); });
+    t.appendChild(el);
+  }
+  t.style.pointerEvents = action ? 'auto' : 'none';
+  t.classList.add('show');
+  clearTimeout(showToast_.tm); showToast_.tm = setTimeout(()=>t.classList.remove('show'), ms || 5000);
 }
 
 async function autoRefreshTick(){
-  if(autoBusy_ || document.hidden || kelEditing) return;   // tab tidak terlihat / sedang mengisi form edit
+  if(autoBusy_ || document.hidden || kelEditing || kelSavesInFlight > 0) return;   // tab tidak terlihat / sedang mengisi form edit
   autoBusy_ = true;
   try{
     const res = await fetch(APPS_SCRIPT_URL, { cache: 'no-store' });
@@ -1383,6 +1405,7 @@ function escK_(v){
 }
 const KEL_EDITS_KEY = 'keluhanEdits_v1';
 const KEL_PIC_LIST = ['Theo','Misbah','Jemi','Sito','Risa'];
+const KEL_STATUS_LIST = ['NEW','OPEN','PROSES','DONE'];
 let kelEditing = null;
 
 function kelStoreGet_(k){ try{ return JSON.parse(localStorage.getItem(k) || 'null'); }catch(e){ return null; } }
@@ -1439,10 +1462,12 @@ function openKeluhanEdit(id){
   picEl.innerHTML = '<option value="">— pilih PIC —</option>' + picOpts.map(n=>'<option value="'+escK_(n)+'">'+escK_(n)+'</option>').join('');
   const picMatch = picOpts.find(n=>n.toLowerCase()===picCur.toLowerCase());
   picEl.value = picMatch || '';
-  document.getElementById('kfStatus').value = r.Status || '';
-  document.getElementById('kfNote').value = r.Note || '';
-  document.getElementById('kfStatusList').innerHTML =
-    uniqSorted(KELUHAN_DATA.map(x=>x.Status).filter(Boolean)).map(v=>'<option value="'+escK_(v)+'">').join('');
+  const stEl = document.getElementById('kfStatus');
+  const stCur = normKeluhanStatus_(r.Status);
+  const stOpts = KEL_STATUS_LIST.slice();
+  if(stOpts.indexOf(stCur) < 0) stOpts.push(stCur);   // nilai lama di sheet yang tidak baku tetap bisa dipertahankan
+  stEl.innerHTML = stOpts.map(n=>'<option value="'+escK_(n)+'">'+escK_(n)+'</option>').join('');
+  stEl.value = stCur;
   const msg = document.getElementById('kmodalMsg'); msg.textContent = ''; msg.className = 'kmodal-msg';
   document.getElementById('kmodalWA').style.display = 'none';
   document.getElementById('kmodalSave').style.display = '';
@@ -1455,10 +1480,17 @@ function closeKeluhanEdit(){
   kelEditing = null;
 }
 
-async function saveKeluhanEdit(){
+const KEL_BULAN_ = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+function fmtTglId_(iso){                       // '2026-11-08' -> '8 Nov 2026' (format yang dipakai sheet)
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || ''); if(!m) return '';
+  return parseInt(m[3],10)+' '+KEL_BULAN_[parseInt(m[2],10)-1]+' '+m[1];
+}
+let kelSavesInFlight = 0;
+
+// Simpan "optimis": tampilan langsung berubah dan jendela langsung tutup; permintaan ke sheet
+// jalan di latar belakang. Kalau gagal, nilai lama dikembalikan dan muncul pesan + tombol "Buka lagi".
+function saveKeluhanEdit(){
   const r = kelEditing; if(!r) return;
-  const msg = document.getElementById('kmodalMsg');
-  const btn = document.getElementById('kmodalSave');
   const fields = {
     Plan: document.getElementById('kfPlan').value,
     ActPerbaikan: document.getElementById('kfAct').value,
@@ -1466,45 +1498,59 @@ async function saveKeluhanEdit(){
     Status: document.getElementById('kfStatus').value.trim(),
     Note: document.getElementById('kfNote').value.trim()
   };
-  btn.disabled = true; msg.className='kmodal-msg'; msg.textContent='Menyimpan...';
-  try{
-    const res = await fetch(APPS_SCRIPT_URL, {
-      method:'POST',
-      headers:{'Content-Type':'text/plain;charset=utf-8'},   // text/plain = tanpa preflight CORS
-      body: JSON.stringify({
-        action:'updateKeluhan', row:(r.Row||0),
-        expected:{ Timestamp:r.Timestamp, KodeArmada:r.KodeArmada, Nopol:r.Nopol, JenisKeluhan:r.JenisKeluhan, DetailKeluhan:r.DetailKeluhan },
-        fields
-      })
-    });
-    const out = await res.json();
+  const prev = { Plan:r.Plan, ActPerbaikan:r.ActPerbaikan, PICSupport:r.PICSupport, Status:r.Status, Note:r.Note };
+  const expected = { Timestamp:r.Timestamp, KodeArmada:r.KodeArmada, Nopol:r.Nopol, JenisKeluhan:r.JenisKeluhan, DetailKeluhan:r.DetailKeluhan };
+  const oldKey = kelEditKey_(r);
+
+  // 1) tampilan langsung berubah
+  Object.assign(r, {
+    Plan: fmtTglId_(fields.Plan), ActPerbaikan: fmtTglId_(fields.ActPerbaikan),
+    PICSupport: fields.PICSupport, Status: normKeluhanStatus_(fields.Status), Note: fields.Note
+  });
+  closeKeluhanEdit();
+  renderKeluhanService(true);
+  showToast_('Menyimpan ke sheet…', 60000);
+
+  // 2) kirim ke sheet di latar belakang
+  kelSavesInFlight++;
+  fetch(APPS_SCRIPT_URL, {
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},   // text/plain = tanpa preflight CORS
+    body: JSON.stringify({ action:'updateKeluhan', row:(r.Row||0), expected, fields })
+  })
+  .then(res=>res.json())
+  .then(out=>{
     if(!out.ok) throw new Error(out.error || 'Gagal menyimpan');
-    const oldKey = kelEditKey_(r);
     r.Row = out.row;                     // jaga-jaga kalau baris di sheet bergeser
     Object.assign(r, out.saved);
+    r.Status = normKeluhanStatus_(r.Status);
     const store = kelStoreGet_(KEL_EDITS_KEY) || {};
     delete store[oldKey];
-    store[kelEditKey_(r)] = { t: Date.now(), fields: out.saved };
+    store[kelEditKey_(r)] = { t: Date.now(), fields: Object.assign({}, out.saved) };
     kelStoreSet_(KEL_EDITS_KEY, store);
     renderKeluhanService(true);
     if(out.wa && out.wa.url){
-      // Plan baru disimpan: tawarkan kirim WA (user klik sendiri -> tidak diblok popup blocker)
-      const wa = document.getElementById('kmodalWA');
-      wa.href = out.wa.url;
-      wa.textContent = '\uD83D\uDCAC Kirim WA ke ' + (out.wa.name || 'karyawan');
-      wa.style.display = '';
-      document.getElementById('kmodalSave').style.display = 'none';
-      document.getElementById('kmodalCancel').textContent = 'Tutup';
-      msg.className = 'kmodal-msg ok'; msg.textContent = 'Tersimpan ke sheet.';
+      showToast_('✓ Tersimpan', 25000, { label:'💬 Kirim WA ke '+(out.wa.name||'karyawan'), href:out.wa.url });
     } else {
-      closeKeluhanEdit();
+      showToast_('✓ Tersimpan ke sheet', 3000);
     }
-  }catch(err){
-    msg.className='kmodal-msg';
-    msg.textContent = (err && err.message ? err.message : String(err));
-  }finally{
-    btn.disabled = false;
-  }
+  })
+  .catch(err=>{
+    Object.assign(r, prev);              // kembalikan nilai lama
+    renderKeluhanService(true);
+    showToast_('Gagal menyimpan: '+(err && err.message ? err.message : err), 20000, {
+      label:'Buka lagi',
+      onClick:()=>{
+        openKeluhanEdit(r._i);
+        document.getElementById('kfPlan').value = fields.Plan;
+        document.getElementById('kfAct').value = fields.ActPerbaikan;
+        document.getElementById('kfPIC').value = fields.PICSupport;
+        document.getElementById('kfStatus').value = fields.Status;
+        document.getElementById('kfNote').value = fields.Note;
+      }
+    });
+  })
+  .finally(()=>{ kelSavesInFlight--; });
 }
 
 function initKeluhanEdit_(){
@@ -1774,6 +1820,20 @@ function renderDowntimeRecap(){
 // Status "done" (case-insensitive) dianggap selesai; apapun selain itu
 // (termasuk kosong) dianggap belum selesai. Sengaja tidak pakai daftar
 // status yang exhaustive, karena nilai status di sheet bisa bervariasi.
+// Samakan penulisan status (done/Done/DONE -> DONE). Keluhan yang statusnya kosong = keluhan baru -> NEW.
+function normKeluhanStatus_(v){
+  const t = String(v == null ? '' : v).trim();
+  if(!t) return 'NEW';
+  const hit = ['NEW','OPEN','PROSES','DONE'].find(x=>x.toLowerCase() === t.toLowerCase());
+  return hit || t;
+}
+function keluhanStatusClass_(v){
+  const t = String(v||'').trim().toUpperCase();
+  if(t === 'DONE') return 'status-keluhan-done';
+  if(t === 'NEW') return 'status-keluhan-new';
+  if(t === 'PROSES') return 'status-keluhan-proses';
+  return 'status-keluhan-open';
+}
 function isKeluhanDone(status){
   return (status || '').trim().toLowerCase() === 'done';
 }
@@ -1813,12 +1873,13 @@ function renderKeluhanService(keepPage){
 
   const rows = currentFilteredKeluhan();
   const total = rows.length;
-  const belumSelesai = rows.filter(r=>!isKeluhanDone(r.Status)).length;
-  const belumAdaPlan = rows.filter(r=>!(r.Plan||'').toString().trim()).length;
+  const cnt = {NEW:0, OPEN:0, PROSES:0};
+  rows.forEach(r=>{ const st = String(r.Status||'').trim().toUpperCase(); if(st in cnt) cnt[st]++; });
 
   animateValue(document.getElementById('kpiKeluhanTotal'), total);
-  animateValue(document.getElementById('kpiKeluhanBelumSelesai'), belumSelesai);
-  animateValue(document.getElementById('kpiKeluhanBaru'), belumAdaPlan);
+  animateValue(document.getElementById('kpiKeluhanNew'), cnt.NEW);
+  animateValue(document.getElementById('kpiKeluhanOpen'), cnt.OPEN);
+  animateValue(document.getElementById('kpiKeluhanProses'), cnt.PROSES);
 
   const sorted = [...rows].sort((a,b)=>{
     let av = a[sortKeyKeluhan] || '', bv = b[sortKeyKeluhan] || '';
@@ -1862,7 +1923,7 @@ function renderKeluhanService(keepPage){
         <td style="white-space:nowrap;">${escK_(r.PICSupport) || '—'}</td>
         <td class="detail k-tgl">${escK_(r.Plan) || '—'}</td>
         <td class="detail k-tgl">${escK_(r.ActPerbaikan) || '—'}</td>
-        <td><span class="status-chip ${isKeluhanDone(r.Status) ? 'status-keluhan-done' : 'status-keluhan-open'}">${escK_(r.Status) || '—'}</span></td>
+        <td><span class="status-chip ${keluhanStatusClass_(r.Status)}">${escK_(r.Status) || '—'}</span></td>
         <td class="detail k-note">${escK_(r.Note) || '—'}</td>
         <td class="col-aksi"><button class="k-act-btn ${hasPlan?'':'plan'}" data-edit-id="${r._i}">${hasPlan ? '&#9998; Edit' : '+ Plan'}</button></td>
       </tr>`;
@@ -2361,8 +2422,7 @@ renderSummaryArmada();
       </div>
       <div>
         <label for="kfStatus">Status</label>
-        <input type="text" id="kfStatus" list="kfStatusList" maxlength="60" placeholder="cth: DONE">
-        <datalist id="kfStatusList"></datalist>
+        <select id="kfStatus"></select>
       </div>
       <div class="full">
         <label for="kfNote">Note (bebas diisi, keterangan tambahan)</label>
