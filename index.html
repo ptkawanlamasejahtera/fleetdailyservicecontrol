@@ -1517,7 +1517,10 @@ function showWaCard_(name, url, kode, plan){
   }
   document.getElementById('waCardSub').textContent = 'Plan armada ' + (kode||'') + (plan ? ' tanggal ' + plan : '') + ' sudah tersimpan. Kirim pemberitahuan ke ' + name + '?';
   const a = document.getElementById('waCardSend');
-  a.href = url; a.textContent = '\uD83D\uDCAC Kirim WA ke ' + name;
+  // wa.me menampilkan halaman perantara ("Lanjut ke chat" / buka aplikasi). Langsung ke WhatsApp Web
+  // supaya chat terbuka dengan pesan sudah terisi; target bernama = klik berikutnya memakai tab yang sama.
+  a.href = String(url).replace('https://wa.me/', 'https://web.whatsapp.com/send?phone=').replace('?text=', '&text=');
+  a.target = 'wa_web'; a.textContent = '\uD83D\uDCAC Kirim WA ke ' + name;
   w.classList.add('open');
 }
 
