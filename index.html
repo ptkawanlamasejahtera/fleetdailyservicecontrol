@@ -756,15 +756,7 @@
   <div class="tab-page" data-tab="keluhan" id="tab-keluhan">
   <div class="panel section-gap" id="keluhanPanel">
     <div class="pmr-card-row">
-      <div class="pmr-card">
-        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/></svg></div>
-        <div>
-          <div class="pmr-card-label">Total Keluhan</div>
-          <div class="pmr-card-value" id="kpiKeluhanTotal">0</div>
-          <div class="pmr-card-sub" id="kpiKeluhanTotalSub">sesuai filter</div>
-        </div>
-      </div>
-      <div class="pmr-card" style="margin-left:14px;background:#FFE3E6;">
+      <div class="pmr-card" style="background:#FFE3E6;">
         <div class="icon" style="color:#E1364F;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg></div>
         <div>
           <div class="pmr-card-label" style="color:#E1364F;">NEW</div>
@@ -1914,7 +1906,6 @@ function renderKeluhanService(keepPage){
   const cnt = {NEW:0, OPEN:0, PROSES:0};
   rows.forEach(r=>{ const st = String(r.Status||'').trim().toUpperCase(); if(st in cnt) cnt[st]++; });
 
-  animateValue(document.getElementById('kpiKeluhanTotal'), total);
   animateValue(document.getElementById('kpiKeluhanNew'), cnt.NEW);
   animateValue(document.getElementById('kpiKeluhanOpen'), cnt.OPEN);
   animateValue(document.getElementById('kpiKeluhanProses'), cnt.PROSES);
