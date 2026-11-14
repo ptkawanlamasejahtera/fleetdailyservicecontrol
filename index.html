@@ -1479,7 +1479,7 @@ function saveDailyEdit_(){
   })
   .then(res=>res.json())
   .then(out=>{
-    if(!out.ok) throw new Error(out.error || 'Gagal menyimpan');
+    if(!out.ok) throw new Error(/Aksi tidak dikenal/i.test(out.error||'') ? 'Apps Script di Google masih versi lama — deploy New version dulu' : (out.error || 'Gagal menyimpan'));
     r.Row = out.row;
     r.Status = out.saved.Status;
     render(); renderDowntimeRecap();
@@ -1629,7 +1629,7 @@ function saveDailyFull_(){
   })
   .then(res=>res.json())
   .then(out=>{
-    if(!out.ok) throw new Error(out.error || 'Gagal menyimpan');
+    if(!out.ok) throw new Error(/Aksi tidak dikenal/i.test(out.error||'') ? 'Apps Script di Google masih versi lama — deploy New version dulu' : (out.error || 'Gagal menyimpan'));
     r.Row = out.row;
     Object.assign(r, out.saved || {});          // pakai nilai persis seperti di sheet
     render(); renderDowntimeRecap();
@@ -1803,7 +1803,7 @@ function saveKeluhanEdit(){
   })
   .then(res=>res.json())
   .then(out=>{
-    if(!out.ok) throw new Error(out.error || 'Gagal menyimpan');
+    if(!out.ok) throw new Error(/Aksi tidak dikenal/i.test(out.error||'') ? 'Apps Script di Google masih versi lama — deploy New version dulu' : (out.error || 'Gagal menyimpan'));
     r.Row = out.row;                     // jaga-jaga kalau baris di sheet bergeser
     Object.assign(r, out.saved);
     r.Status = normKeluhanStatus_(r.Status);
